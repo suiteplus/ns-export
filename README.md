@@ -2,10 +2,29 @@
 Export Record Type metadata to JSON
 
 ### Require
-    * PhantomJS 1.9.1+
-    * CasperJS 1.1.0+
+
+  * PhantomJS 1.9.+
+  * CasperJS 1.1.+
+
+### Install CasperJS + PhantomJS
+
+```bash
+   sudo npm install -g casperjs phantomjs
+   
+   casperjs --help
+```
+ 
+ **Output like**
+ 
+```text
+CasperJS version 1.1.0-beta3 at ..., using phantomjs version 1.9.8
+Usage: casperjs ...
+...
+```
+
 
 ### Usage
-```shell
+
+```bash 
    npm run export
 ```
