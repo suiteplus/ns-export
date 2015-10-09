@@ -1,0 +1,33 @@
+{
+  "name": "ns-export-metadata",
+  "version": "0.1.0",
+  "description": "Export Record Type metadata to JSON",
+  "main": "index.js",
+  "scripts": {
+    "export": "casperjs --ignore-ssl-errors=true --ssl-protocol=any index.js",
+    "debug": "casperjs --debug=yes --ignore-ssl-errors=true --ssl-protocol=any index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/suiteplus/ns-export-metadata.git"
+  },
+  "keywords": [
+    "netsuite",
+    "suiteplus",
+    "recordtype",
+    "export",
+    "suitescript",
+    "suite",
+    "s+"
+  ],
+  "author": "daniel.joppi@gmail.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/suiteplus/ns-export-metadata/issues"
+  },
+  "homepage": "https://github.com/suiteplus/ns-export-metadata#readme",
+  "dependencies": {
+    "nsconfig": "^0.1.0"
+  }
+}
