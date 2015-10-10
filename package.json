@@ -28,6 +28,7 @@
   },
   "homepage": "https://github.com/suiteplus/ns-export-metadata#readme",
   "dependencies": {
+    "jquery": "^2.1.4",
     "nsconfig": "^0.1.0"
   }
 }
