@@ -29,7 +29,7 @@ var base = params.realm || 'system.netsuite.com',
 
 casper.start();
 
-var customRecords = require('./lib/custom-records')(casper);
+var records = require('./lib/records')(casper);
 
 casper.open(sysURL + '/app/login/nllogin.nl', {
    method: 'post',
@@ -77,7 +77,7 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
         casper.wait(1000, function () {
             this.capture(ssDir + '/home.jpg');
 
-            customRecords.loadAll(na1URL);
+            records.loadAll(na1URL);
         });
     });
 });
