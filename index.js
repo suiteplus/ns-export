@@ -12,12 +12,24 @@ var casper = require('casper').create({
 var fs = require('fs'),
     params = JSON.parse(fs.read('./nsconfig.json', 'utf-8'));
 
+// make temporary directories
+var tempDir = '.ns-exports',
+    ssDir = tempDir + '/ss',
+    metaDir = tempDir + '/meta';
+
+if (fs.exists(tempDir)) fs.removeTree(tempDir);
+[tempDir, ssDir, metaDir].forEach(function(dir) {
+    if (!fs.exists(dir)) fs.makeDirectory(dir); 
+});
+
 var base = params.realm || 'system.netsuite.com',
     sysURL = 'https://'+base,
     dotIdx = sysURL.indexOf('.'),
     na1URL = sysURL.substring(0, dotIdx) + '.na1' + sysURL.substring(dotIdx);
 
 casper.start();
+
+var customRecords = require('./lib/custom-records')(casper);
 
 casper.open(sysURL + '/app/login/nllogin.nl', {
    method: 'post',
@@ -28,7 +40,7 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
     }
 }).then( function () {
     this.viewport(1280, 1024);
-    this.capture('ss/question.jpg');
+    this.capture(ssDir + '/question.jpg');
 
     var html = this.getHTML().toString().toLowerCase();
     var quiz = params.quiz,
@@ -48,37 +60,24 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
     }
 
     casper.wait(15000, function() {
-        this.capture('ss/afterLogin.jpg');
+        this.capture(ssDir + '/afterLogin.jpg');
 
         var html = this.getHTML().toString(),
             $html = $(html),
-            rows = $html.find('tr.uir-list-row-tr');
+            $rows = $html.find('tr.uir-list-row-tr');
 
-        for (var r = 0; r < rows.length; r++) {
-            var row = $(rows[r]);
-            if (~row.text().indexOf(params.account)) {
-                this.click('span#' + $('span.checkbox_ck', row)[0].id);
+        for (var r = 0; r < $rows.length; r++) {
+            var $row = $($rows[r]);
+            if (~$row.text().indexOf(params.account)) {
+                this.click('span#' + $('span.checkbox_ck', $row)[0].id);
                 break;
             }
         }
 
         casper.wait(1000, function () {
-            this.capture('ss/home.jpg');
+            this.capture(ssDir + '/home.jpg');
 
-            // load records type list
-            casper.open(na1URL + '/app/common/custom/custrecords.nl').then(function() {
-                this.capture('ss/record-list.jpg');
-                var html = this.getHTML().toString(),
-                    $html = $(html),
-                    rows = $html.find('tr.uir-list-row-tr');
-
-                for (var r = 0; r < rows.length; r++) {
-                    var row = $(rows[r]),
-                        recType = row.find('td:nth-child(3)').text().trim(),
-                        recId = row.find('td:nth-child(4)').text().trim();
-                    console.log(r, '->', recType, '[', recId, ']');
-                }
-            })
+            customRecords.loadAll(na1URL);
         });
     });
 });

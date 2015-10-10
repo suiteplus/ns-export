@@ -28,7 +28,7 @@ node_modules
 
 ## NS config
 test-old
-ss
+.ns-exports
 *nsconfig.json
 
 #IDE
