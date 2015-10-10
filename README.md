@@ -26,5 +26,7 @@ Usage: casperjs ...
 ### Usage
 
 ```bash 
+   git clone https://github.com/suiteplus/ns-export-metadata.git
+   cd ns-export-metadata/
    npm run export
 ```
