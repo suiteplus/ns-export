@@ -22,11 +22,17 @@ Usage: casperjs ...
 ...
 ```
 
-
 ### Usage
+
+**Clone project**
 
 ```bash 
    git clone https://github.com/suiteplus/ns-export-metadata.git
    cd ns-export-metadata/
    npm run export
 ```
+
+
+**Athentication Config**
+
+Create a JSON file call **nsconfig.json**. Look his format in [nsconfig](https://github.com/suiteplus/nsconfig).
