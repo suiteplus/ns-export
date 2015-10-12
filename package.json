@@ -1,6 +1,6 @@
 {
-  "name": "ns-export-metadata",
-  "version": "0.1.0",
+  "name": "ns-export",
+  "version": "0.2.0",
   "description": "Export Record Type metadata to JSON",
   "main": "index.js",
   "scripts": {
@@ -29,6 +29,7 @@
   "homepage": "https://github.com/suiteplus/ns-export-metadata#readme",
   "dependencies": {
     "jquery": "^2.1.4",
-    "nsconfig": "^0.1.0"
+    "nsconfig": "^0.1.0",
+    "yargs": "^3.27.0"
   }
 }
