@@ -1,4 +1,7 @@
 'use strict';
+phantom.casperPath = './node_modules/casperjs';
+phantom.injectJs(phantom.casperPath + '/bin/bootstrap.js');
+
 var casper = require('casper').create({
         pageSettings: {
             loadImages:  false,        // The WebPage instance used by Casper will
