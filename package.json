@@ -1,6 +1,6 @@
 {
-  "name": "ns-export-metadata",
-  "version": "0.1.0",
+  "name": "ns-export",
+  "version": "0.1.1",
   "description": "Export Record Type metadata to JSON",
   "main": "index.js",
   "scripts": {
