@@ -1,4 +1,4 @@
-# ns-export-metadata
+# ns-export
 Export Record Type metadata to JSON
 
 ### Require
@@ -27,8 +27,9 @@ Usage: casperjs ...
 **Clone project**
 
 ```bash 
-   git clone https://github.com/suiteplus/ns-export-metadata.git
+   git clone https://github.com/suiteplus/ns-export.git
    cd ns-export-metadata/
+   npm install
    npm run export
 ```
 
