@@ -1,0 +1,66 @@
+{
+  "code": "currency",
+  "id": -111,
+  "name": "Account",
+  "inactive": false,
+  "fields": [
+    {
+      "code": "name",
+      "id": 0,
+      "desc": "Number",
+      "type": "STRING",
+      "mandatory": true
+    },
+    {
+      "code": "locale",
+      "id": 0,
+      "desc": "Default Locale",
+      "type": "STRING",
+      "mandatory": true
+    },
+    {
+      "code": "symbol",
+      "id": 0,
+      "desc": "ISO Code",
+      "type": "STRING",
+      "mandatory": true
+    },
+    {
+      "code": "exchangerate",
+      "id": 0,
+      "desc": "Default Exchange rate (to root subsidiary currency)",
+      "type": "STRING",
+      "mandatory": true
+    },
+    {
+      "code": "includeinfxrateupdates",
+      "id": 0,
+      "desc": "Automatic Update",
+      "type": "BOOLEAN",
+      "mandatory": false,
+      "default": true
+    },
+    {
+      "code": "overridecurrencyformat",
+      "id": 0,
+      "desc": "Override Currency Format",
+      "type": "BOOLEAN",
+      "mandatory": false
+    },
+    {
+      "code": "displaysymbol",
+      "id": 0,
+      "desc": "Symbol",
+      "type": "STRING",
+      "mandatory": false
+    },
+    {
+      "code": "symbolplacement",
+      "id": 0,
+      "desc": "Symbol",
+      "type": "INTEGER",
+      "mandatory": false,
+      "inactive": false
+    }
+  ]
+}

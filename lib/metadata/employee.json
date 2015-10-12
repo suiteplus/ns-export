@@ -1,0 +1,15 @@
+{
+  "code": "employee",
+  "id": -4,
+  "name": "Employee",
+  "inactive": false,
+  "fields": [
+    {
+      "code": "name",
+      "id": 0,
+      "desc": "Name",
+      "type": "STRING",
+      "mandatory": true
+    }
+  ]
+}

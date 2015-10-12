@@ -1,0 +1,15 @@
+{
+  "code": "vendor",
+  "id": -3,
+  "name": "Vendor",
+  "inactive": false,
+  "fields": [
+    {
+      "code": "name",
+      "id": 0,
+      "desc": "Name",
+      "type": "STRING",
+      "mandatory": true
+    }
+  ]
+}

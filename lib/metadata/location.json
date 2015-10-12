@@ -1,0 +1,23 @@
+{
+  "code": "location",
+  "id": -103,
+  "name": "Location",
+  "inactive": false,
+  "fields": [
+    {
+      "code": "name",
+      "id": 0,
+      "desc": "Name",
+      "type": "STRING",
+      "mandatory": true
+    },
+    {
+      "code": "parent",
+      "id": 0,
+      "desc": "Sublocation Of",
+      "type": "SELECT",
+      "mandatory": false,
+      "recordType": "location"
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "code": "account",
+  "id": -112,
+  "name": "Account",
+  "inactive": false,
+  "fields": [
+    {
+      "code": "acctnumber",
+      "id": 0,
+      "desc": "Number",
+      "type": "INTEGER",
+      "mandatory": true
+    },
+    {
+      "code": "acctname",
+      "id": 0,
+      "desc": "Name",
+      "type": "STRING",
+      "mandatory": true
+    },
+    {
+      "code": "accttype",
+      "id": 0,
+      "desc": "Type",
+      "type": "STRING",
+      "mandatory": true
+    },
+    {
+      "code": "currency",
+      "id": 0,
+      "desc": "Currency",
+      "type": "SELECT",
+      "mandatory": true,
+      "recordType": "currency"
+    },
+    {
+      "code": "generalrate",
+      "id": 0,
+      "desc": "General Rate Type",
+      "type": "STRING",
+      "mandatory": false
+    },
+    {
+      "code": "cashflowrate",
+      "id": 0,
+      "desc": "Cash Flow Rate",
+      "type": "STRING",
+      "mandatory": false
+    },
+    {
+      "code": "inventory",
+      "id": 0,
+      "desc": "Inventory",
+      "type": "BOOLEAN",
+      "mandatory": false
+    },
+    {
+      "code": "revalue",
+      "id": 0,
+      "desc": "Revalue Open Balance",
+      "type": "BOOLEAN",
+      "mandatory": false,
+      "default": true
+    },
+    {
+      "code": "description",
+      "id": 0,
+      "desc": "Description",
+      "type": "STRING",
+      "mandatory": false
+    },
+    {
+      "code": "trandate",
+      "id": 0,
+      "desc": "Date",
+      "type": "DATE",
+      "mandatory": false
+    },
+    {
+      "code": "issummary",
+      "id": 0,
+      "desc": "Summary",
+      "type": "BOOLEAN",
+      "mandatory": false,
+      "default": true
+    },
+    {
+      "code": "isinactive",
+      "id": 0,
+      "desc": "Inactive",
+      "type": "BOOLEAN",
+      "mandatory": false,
+      "default": true
+    },
+    {
+      "code": "department",
+      "id": 0,
+      "desc": "Restrict to Department",
+      "type": "SELECT",
+      "mandatory": false,
+      "recordType": "department"
+    },
+    {
+      "code": "class",
+      "id": 0,
+      "desc": "Restrict to Class",
+      "type": "SELECT",
+      "mandatory": false,
+      "recordType": "class"
+    },
+    {
+      "code": "location",
+      "id": 0,
+      "desc": "Restrict to Location",
+      "type": "SELECT",
+      "mandatory": false,
+      "recordType": "location"
+    },
+    {
+      "code": "subsidiary",
+      "id": 0,
+      "desc": "Subsidiary",
+      "type": "MULTISELECT",
+      "mandatory": true,
+      "recordType": "subsidiary"
+    }
+  ]
+}

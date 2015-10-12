@@ -1,0 +1,15 @@
+{
+  "code": "class",
+  "id": -101,
+  "name": "Class",
+  "inactive": false,
+  "fields": [
+    {
+      "code": "name",
+      "id": 0,
+      "desc": "Name",
+      "type": "STRING",
+      "mandatory": true
+    }
+  ]
+}
