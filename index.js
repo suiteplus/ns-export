@@ -17,7 +17,7 @@ var tempDir = '.ns-exports',
     ssDir = tempDir + '/ss',
     metaDir = tempDir + '/meta';
 
-if (fs.exists(tempDir)) fs.removeTree(tempDir);
+//if (fs.exists(tempDir)) fs.removeTree(tempDir);
 [tempDir, ssDir, metaDir].forEach(function(dir) {
     if (!fs.exists(dir)) fs.makeDirectory(dir); 
 });
@@ -29,7 +29,7 @@ var base = params.realm || 'system.netsuite.com',
 
 casper.start();
 
-var records = require('./lib/records')(casper);
+var records = require('./lib/manager-queues')(casper);
 
 casper.open(sysURL + '/app/login/nllogin.nl', {
    method: 'post',
