@@ -1,0 +1,15 @@
+{
+  "code": "category",
+  "id": -110,
+  "name": "Category",
+  "inactive": false,
+  "fields": [
+    {
+      "code": "name",
+      "id": 0,
+      "desc": "Name",
+      "type": "STRING",
+      "mandatory": true
+    }
+  ]
+}

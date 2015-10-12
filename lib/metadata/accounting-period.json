@@ -1,0 +1,15 @@
+{
+  "code": "accounting-period",
+  "id": -105,
+  "name": "Accounting Period",
+  "inactive": false,
+  "fields": [
+    {
+      "code": "name",
+      "id": 0,
+      "desc": "Name",
+      "type": "STRING",
+      "mandatory": true
+    }
+  ]
+}
