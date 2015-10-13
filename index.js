@@ -20,7 +20,7 @@ var tempDir = '.ns-exports',
     ssDir = tempDir + '/ss',
     metaDir = tempDir + '/meta';
 
-//if (fs.exists(tempDir)) fs.removeTree(tempDir);
+if (fs.exists(tempDir)) fs.removeTree(tempDir);
 [tempDir, ssDir, metaDir].forEach(function(dir) {
     if (!fs.exists(dir)) fs.makeDirectory(dir); 
 });
