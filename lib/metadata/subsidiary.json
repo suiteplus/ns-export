@@ -23,7 +23,7 @@
       "code": "isinactive",
       "id": 0,
       "desc": "Inactive",
-      "type": "BOOLEAN",
+      "type": "CHECKBOX",
       "mandatory": false
     },
     {

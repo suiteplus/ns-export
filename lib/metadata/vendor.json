@@ -10,6 +10,36 @@
       "desc": "Name",
       "type": "STRING",
       "mandatory": true
+    },
+    {
+      "code": "firstname",
+      "desc": "First Name",
+      "id": 0,
+      "type": "STRING"
+    },
+    {
+      "code": "middlename",
+      "desc": "Middle Name",
+      "id": 0,
+      "type": "STRING"
+    },
+    {
+      "code": "lastname",
+      "desc": "Last Name",
+      "id": 0,
+      "type": "STRING"
+    },
+    {
+      "code": "email",
+      "desc": "Email",
+      "id": 0,
+      "type": "STRING"
+    },
+    {
+      "code": "isperson",
+      "desc": "Is Person",
+      "id": 0,
+      "type": "CHECKBOX"
     }
   ]
 }
