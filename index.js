@@ -7,7 +7,7 @@ var casper = require('casper').create({
             loadImages:  false,        // The WebPage instance used by Casper will
             loadPlugins: false         // use these settings
         },
-        logLevel: "info",              // Only "info" level messages will be logged
+        logLevel: "warning",           // Only "info" level messages will be logged
         verbose: true                  // log messages will be printed out to the console
     }),
     $ = require('./node_modules/jquery/dist/jquery.js');
@@ -32,8 +32,15 @@ var base = params.realm || 'system.netsuite.com',
 
 casper.start();
 
-var records = require('./lib/manager-queues')(casper);
+var records = require('./lib/manager-queues')(casper, params);
 
+console.log('############################################');
+console.log('========>>> ns-export starting <<<==========');
+console.log('--------------------------------------------');
+console.log('account: ' + params.account);
+console.log('user: ' + params.email);
+console.log('realm: ' + params.realm);
+console.log('############################################');
 casper.open(sysURL + '/app/login/nllogin.nl', {
    method: 'post',
     data:   {
@@ -81,11 +88,6 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
             this.capture(ssDir + '/home.jpg');
 
             records.loadAll({url: na1URL});
-
-            // download data
-            casper.then(function() {
-                records.download({url: na1URL, downloads: params.downloads});
-            })
         });
     });
 });
