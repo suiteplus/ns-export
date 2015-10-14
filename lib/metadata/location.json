@@ -11,6 +11,37 @@
       "type": "STRING",
       "mandatory": true
     },
+
+    {
+      "code": "address1",
+      "desc": "Address 1",
+      "id": 0,
+      "type": "STRING"
+    },
+    {
+      "code": "address2",
+      "desc": "Address 2",
+      "id": 0,
+      "type": "STRING"
+    },
+    {
+      "code": "city",
+      "desc": "City",
+      "id": 0,
+      "type": "STRING"
+    },
+    {
+      "code": "state",
+      "desc": "State",
+      "id": 0,
+      "type": "STRING"
+    },
+    {
+      "code": "zip",
+      "desc": "Zip Code",
+      "id": 0,
+      "type": "STRING"
+    },
     {
       "code": "parent",
       "id": 0,
