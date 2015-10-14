@@ -51,14 +51,14 @@
       "code": "inventory",
       "id": 0,
       "desc": "Inventory",
-      "type": "BOOLEAN",
+      "type": "CHECKBOX",
       "mandatory": false
     },
     {
       "code": "revalue",
       "id": 0,
       "desc": "Revalue Open Balance",
-      "type": "BOOLEAN",
+      "type": "CHECKBOX",
       "mandatory": false,
       "default": true
     },
@@ -80,15 +80,7 @@
       "code": "issummary",
       "id": 0,
       "desc": "Summary",
-      "type": "BOOLEAN",
-      "mandatory": false,
-      "default": true
-    },
-    {
-      "code": "isinactive",
-      "id": 0,
-      "desc": "Inactive",
-      "type": "BOOLEAN",
+      "type": "CHECKBOX",
       "mandatory": false,
       "default": true
     },
@@ -123,6 +115,14 @@
       "type": "MULTISELECT",
       "mandatory": true,
       "recordType": "subsidiary"
+    },
+    {
+      "code": "isinactive",
+      "id": 0,
+      "desc": "Inactive",
+      "type": "CHECKBOX",
+      "mandatory": false,
+      "default": true
     }
   ]
 }

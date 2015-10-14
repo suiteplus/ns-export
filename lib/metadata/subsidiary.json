@@ -20,17 +20,17 @@
       "recordType": "subsidiary"
     },
     {
-      "code": "isinactive",
+      "code": "showsubsidiaryname",
       "id": 0,
-      "desc": "Inactive",
+      "desc": "Always Dusplay Subsidiary Name",
       "type": "CHECKBOX",
       "mandatory": false
     },
     {
-      "code": "showsubsidiaryname",
+      "code": "isinactive",
       "id": 0,
-      "desc": "Always Dusplay Subsidiary Name",
-      "type": "BOOLEAN",
+      "desc": "Inactive",
+      "type": "CHECKBOX",
       "mandatory": false
     }
   ]

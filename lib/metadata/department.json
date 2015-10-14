@@ -28,18 +28,19 @@
       "recordType": "subsidiary"
     },
     {
-      "code": "isinactive",
-      "id": 0,
-      "desc": "Inactive",
-      "type": "BOOLEAN",
-      "mandatory": false
-    },
-    {
       "code": "includechildren",
       "id": 0,
       "desc": "Include Children",
-      "type": "BOOLEAN",
+      "type": "CHECKBOX",
       "mandatory": false
+    },
+    {
+      "code": "isinactive",
+      "id": 0,
+      "desc": "Inactive",
+      "type": "CHECKBOX",
+      "mandatory": false,
+      "default": true
     }
   ]
 }

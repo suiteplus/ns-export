@@ -18,6 +18,14 @@
       "type": "SELECT",
       "mandatory": false,
       "recordType": "location"
+    },
+    {
+      "code": "isinactive",
+      "id": 0,
+      "desc": "Inactive",
+      "type": "CHECKBOX",
+      "mandatory": false,
+      "default": true
     }
   ]
 }

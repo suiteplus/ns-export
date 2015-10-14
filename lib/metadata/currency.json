@@ -36,7 +36,7 @@
       "code": "includeinfxrateupdates",
       "id": 0,
       "desc": "Automatic Update",
-      "type": "BOOLEAN",
+      "type": "CHECKBOX",
       "mandatory": false,
       "default": true
     },
@@ -44,7 +44,7 @@
       "code": "overridecurrencyformat",
       "id": 0,
       "desc": "Override Currency Format",
-      "type": "BOOLEAN",
+      "type": "CHECKBOX",
       "mandatory": false
     },
     {
@@ -61,6 +61,14 @@
       "type": "INTEGER",
       "mandatory": false,
       "inactive": false
+    },
+    {
+      "code": "isinactive",
+      "id": 0,
+      "desc": "Inactive",
+      "type": "CHECKBOX",
+      "mandatory": false,
+      "default": true
     }
   ]
 }

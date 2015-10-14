@@ -10,6 +10,14 @@
       "desc": "Name",
       "type": "STRING",
       "mandatory": true
+    },
+    {
+      "code": "isinactive",
+      "id": 0,
+      "desc": "Inactive",
+      "type": "CHECKBOX",
+      "mandatory": false,
+      "default": true
     }
   ]
 }

@@ -40,6 +40,13 @@
       "desc": "Is Person",
       "id": 0,
       "type": "CHECKBOX"
+    },
+    {
+      "code": "isinactive",
+      "id": 0,
+      "desc": "Inactive",
+      "type": "CHECKBOX",
+      "mandatory": false
     }
   ]
 }
