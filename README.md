@@ -1,39 +1,54 @@
-# ns-export
+# ns-export [![NPM version][npm-image]][npm-url] 
 Export Record Type metadata to JSON
 
 ### Require
 
-  * PhantomJS 1.9.+
-  * CasperJS 1.1.+
+  * Node
 
-### Install CasperJS + PhantomJS
+### Install [![Dependency Status][david-image]][david-url]
 
 ```bash
-   sudo npm install -g casperjs phantomjs
+   sudo npm install -g ns-export
    
-   casperjs --help
+   nsexport --help
 ```
  
- **Output like**
- 
-```text
-CasperJS version 1.1.0-beta3 at ..., using phantomjs version 1.9.8
-Usage: casperjs ...
-...
-```
-
 ### Usage
 
-**Clone project**
+**Command Line with nsconfig.json**
 
 ```bash 
-   git clone https://github.com/suiteplus/ns-export.git
-   cd ns-export-metadata/
-   npm install
-   npm run export
+   nsexport customrecord_japo 1 
 ```
 
+**Example of nsconfig.jsn**
 
-**Athentication Config**
+You can save nsconfing.json in ~/.ns/nsconfig.json. 
+Read more in [nsconfig](htts://github.com/suiteplus/nsconfig). 
 
-Create a JSON file call **nsconfig.json**. Look his format in [nsconfig](https://github.com/suiteplus/nsconfig).
+```json
+{
+  "email": "user@email.tt",
+  "password": "****",
+  "account": "JJHSN87932P",
+  "realm": "system.netsuite.com",
+  "quiz": [
+    {
+      "question": "question 1",
+      "answer": "answer 1"
+    }, {
+      "question": "question 2",
+      "answer": "answer 2"
+    }, {
+      "question": "question 3",
+      "answer": "answer 3"
+    }
+  ]
+} 
+```
+
+[david-url]: https://david-dm.org/suiteplus/ns-export
+[david-image]: https://david-dm.org/suiteplus/ns-export.svg
+
+[npm-url]: https://npmjs.org/package/ns-export
+[npm-image]: http://img.shields.io/npm/v/ns-export.svg

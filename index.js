@@ -1,5 +1,16 @@
 'use strict';
-phantom.casperPath = './node_modules/casperjs';
+var system = require('system'),
+    fs = require('fs'),
+    args = system.args,
+    dirWork;
+
+if (args && args.length >= 2) {
+    dirWork = args[1];
+} else {
+    dirWork = fs.workingDirectory;
+}
+
+phantom.casperPath = dirWork + '/node_modules/casperjs';
 phantom.injectJs(phantom.casperPath + '/bin/bootstrap.js');
 
 var casper = require('casper').create({
@@ -12,40 +23,43 @@ var casper = require('casper').create({
     }),
     $ = require('./node_modules/jquery/dist/jquery.js');
 
-var fs = require('fs'),
-    params = JSON.parse(fs.read('./nsconfig.json', 'utf-8'));
-
 // make temporary directories
 var tempDir = '.ns-exports',
     ssDir = tempDir + '/ss',
-    metaDir = tempDir + '/meta';
+    metaDir = tempDir + '/meta',
+    configFile = tempDir+'/nsconfig.json';
+
+if (!fs.exists(configFile)) {
+    console.log('Cannot load Netsuite Auth configuration. See http://github.com/suiteplus/nsconfig');
+}
+var config = JSON.parse(fs.read(configFile, 'utf-8'));
 
 if (fs.exists(tempDir)) fs.removeTree(tempDir);
 [tempDir, ssDir, metaDir].forEach(function(dir) {
     if (!fs.exists(dir)) fs.makeDirectory(dir); 
 });
 
-var base = params.realm || 'system.netsuite.com',
+var base = config.realm || 'system.netsuite.com',
     sysURL = 'https://'+base,
     dotIdx = sysURL.indexOf('.'),
     na1URL = sysURL.substring(0, dotIdx) + '.na1' + sysURL.substring(dotIdx);
 
 casper.start();
 
-var records = require('./lib/manager-queues')(casper, params);
+var records = require('./lib/manager-queues')(casper, config, dirWork);
 
 console.log('############################################');
 console.log('========>>> ns-export starting <<<==========');
 console.log('--------------------------------------------');
-console.log('account: ' + params.account);
-console.log('user: ' + params.email);
-console.log('realm: ' + params.realm);
+console.log('account: ' + config.account);
+console.log('user: ' + config.email);
+console.log('realm: ' + config.realm);
 console.log('############################################');
 casper.open(sysURL + '/app/login/nllogin.nl', {
    method: 'post',
     data:   {
-        'email' : params.email,
-        'password' : params.password,
+        'email' : config.email,
+        'password' : config.password,
         'jsenabled': 'T'
     }
 }).then( function () {
@@ -53,7 +67,7 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
     this.capture(ssDir + '/question.jpg');
 
     var html = this.getHTML().toString().toLowerCase();
-    var quiz = params.quiz,
+    var quiz = config.quiz,
         has = false;
     for (var i = 0; i < quiz.length; i++) {
         var q = quiz[i];
@@ -78,7 +92,7 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
 
         for (var r = 0; r < $rows.length; r++) {
             var $row = $($rows[r]);
-            if (~$row.text().indexOf(params.account)) {
+            if (~$row.text().indexOf(config.account)) {
                 this.click('span#' + $('span.checkbox_ck', $row)[0].id);
                 break;
             }
@@ -89,7 +103,8 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
 
             records.loadAll({
                 url: na1URL,
-                params: params
+                config: config,
+                dir: dirWork
             });
         });
     });
