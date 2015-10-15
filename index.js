@@ -87,7 +87,10 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
         casper.wait(1000, function () {
             this.capture(ssDir + '/home.jpg');
 
-            records.loadAll({url: na1URL, params: params});
+            records.loadAll({
+                url: na1URL,
+                params: params
+            });
         });
     });
 });
