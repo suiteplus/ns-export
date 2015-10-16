@@ -1,0 +1,224 @@
+{
+  "code": "transaction",
+  "id": -30,
+  "name": "Transaction",
+  "inactive": false,
+  "fields": [
+    {
+      "code": "name",
+      "id": 0,
+      "desc": "Name",
+      "type": "STRING",
+      "mandatory": true
+    },
+    {
+      "code": "baserecordtype",
+      "id": 0,
+      "desc": "Base Record Type",
+      "type": "STRING",
+      "mandatory": true
+    },
+    {
+      "code": "isinactive",
+      "id": 0,
+      "desc": "Inactive",
+      "type": "CHECKBOX",
+      "mandatory": false,
+      "default": true
+    },
+    {
+      "code": "account",
+      "id": 0,
+      "desc": "account",
+      "type": "STRING",
+      "mandatory": false
+    },
+    {
+      "code": "amountpaid",
+      "id": 0,
+      "desc": "Amountpaid",
+      "type": "CURRENCY",
+      "mandatory": false
+    },
+    {
+      "code": "amountremaining",
+      "id": 0,
+      "desc": "amountremaining",
+      "type": "CURRENCY",
+      "mandatory": false
+    },
+    {
+      "code": "amountremainingtotalbox",
+      "id": 0,
+      "desc": "amountremainingtotalbox",
+      "type": "CURRENCY",
+      "mandatory": false
+    },
+    {
+      "code": "balance",
+      "id": 0,
+      "desc": "balance",
+      "type": "CURRENCY",
+      "mandatory": false
+    },
+    {
+      "code": "balreadyrefunded",
+      "id": 0,
+      "desc": "balreadyrefunded",
+      "type": "CHECKBOX",
+      "mandatory": false
+    },
+    {
+      "code": "balance",
+      "id": 0,
+      "desc": "balance",
+      "type": "CURRENCY",
+      "mandatory": false
+    },
+    {
+      "code": "baserecordtype",
+      "id": 0,
+      "desc": "baserecordtype",
+      "type": "TEXT",
+      "mandatory": false
+    },
+    {
+      "code": "billoverride",
+      "id": 0,
+      "desc": "billoverride",
+      "type": "CHECKBOX",
+      "mandatory": false
+    },
+    {
+      "code": "class",
+      "id": 0,
+      "desc": "class",
+      "type": "SELECT",
+      "mandatory": false,
+      "recordType": "class"
+    },
+    {
+      "code": "cleared",
+      "id": 0,
+      "desc": "cleared",
+      "type": "CHECKBOX",
+      "mandatory": false
+    },
+    {
+      "code": "consolidatebalance",
+      "id": 0,
+      "desc": "consolidatebalance",
+      "type": "CURRENCY",
+      "mandatory": false
+    },
+    {
+      "code": "createddate",
+      "id": 0,
+      "desc": "createddate",
+      "type": "DATE",
+      "mandatory": false
+    },
+    {
+      "code": "consolidatebalance",
+      "id": 0,
+      "desc": "consolidatebalance",
+      "type": "CURRENCY",
+      "mandatory": false
+    },
+    {
+      "code": "createdfrom",
+      "id": 0,
+      "desc": "createdfrom",
+      "type": "SELECT",
+      "mandatory": false,
+      "recordType": "transaction"
+    },
+    {
+      "code": "credlim",
+      "id": 0,
+      "desc": "credlim",
+      "type": "CURRENCY",
+      "mandatory": false
+    },
+    {
+      "code": "currency",
+      "id": 0,
+      "desc": "currency",
+      "type": "SELECT",
+      "mandatory": false,
+      "recordType": "currency"
+    },
+    {
+      "code": "currencyname",
+      "id": 0,
+      "desc": "currencyname",
+      "type": "TEXT",
+      "mandatory": false
+    },
+    {
+      "code": "currencyprecision",
+      "id": 0,
+      "desc": "currencyprecision",
+      "type": "INTEGER",
+      "mandatory": false
+    },
+    {
+      "code": "currencysymbol",
+      "id": 0,
+      "desc": "currencysymbol",
+      "type": "TEXT",
+      "mandatory": false
+    },
+    {
+      "code": "currencysymbol",
+      "id": 0,
+      "desc": "currencysymbol",
+      "type": "TEXT",
+      "mandatory": false
+    },
+    {
+      "code": "currencysymbol",
+      "id": 0,
+      "desc": "currencysymbol",
+      "type": "TEXT",
+      "mandatory": false
+    },
+    {
+      "code": "entity",
+      "id": 0,
+      "desc": "entity",
+      "type": "SELECT",
+      "mandatory": false,
+      "recordType": "customer"
+    },
+    {
+      "code": "entityname",
+      "id": 0,
+      "desc": "entityname",
+      "type": "TEXT",
+      "mandatory": false
+    },
+    {
+      "code": "entityfieldname",
+      "id": 0,
+      "desc": "entityfieldname",
+      "type": "TEXT",
+      "mandatory": false
+    },
+    {
+      "code": "isbasecurrency",
+      "id": 0,
+      "desc": "isbasecurrency",
+      "type": "CURRENCY",
+      "mandatory": false
+    },
+    {
+      "code": "subsidiary",
+      "id": 0,
+      "desc": "subsidiary",
+      "type": "SELECT",
+      "mandatory": false,
+      "recordType": "subsidiary"
+    }
+  ]
+}
