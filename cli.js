@@ -3,11 +3,11 @@
 'use strict';
 
 var yarr = require('yargs')
-    .usage('Usage: ns-export-metadata <command> <file> [options]')
-    .command('recType', 'Name of Record Type, example:"customer" or "customrecord_japo".')
-    .command('id', 'ID of data in Record Type.')
+    .usage('Usage: nsexport <command> [options]')
+    .command('<recType> <id>', 'Record Type and ID, "nsexport customrecord_japo 122"')
+    .command('<file>', 'JSON Array of Record Types and IDs, "nsexport ./records.json"')
     .demand(1)
-    .demand(2)
+    //.demand(2)
     .describe('depth','Depth of join with others Records. Default: 1.').alias('depth','d')
     .describe('email','Account email.').alias('email','e')
     .describe('password','Account password.').alias('password','p')
@@ -76,9 +76,8 @@ if (!config.downloads || (record && id)) {
             id: id
         });
     } else {
-        !record && console.error('>> Null Record Type');
-        !id && console.error('>> Null ID');
-        process.exit(0);
+        var file = record;
+        config.downloads = require(file);
     }
 }
 
