@@ -19,8 +19,8 @@ Export Netsuite's Record Type metadata to JSON.
 _nsexport_ uses [phantomjs](http://www.phantomjs.org) to peek into an account and
 fetch metadata.
 
-  1. Set up your credentials by creating a [nsconfig.json](htts://github.com/suiteplus/nsconfig) file in your current path 
-or in `~/.ns/` using the following template: 
+  - Set up your credentials by creating a [nsconfig.json](https://github.com/suiteplus/nsconfig) file in your current path 
+or in `~/.ns/` using the following template. Security questions must be lowercased.
 
 ```json
 {
@@ -43,12 +43,13 @@ or in `~/.ns/` using the following template:
 } 
 ```
 
-  2. Invoke the CLI tool.
+  - Invoke the CLI tool.
 
 ```bash 
-   nsexport customrecord_japo 1 
+   nsexport customrecord_japo 293
 ```
 
+Fetched data are dumped into the `./ns-exports` folder.
 
 [david-url]: https://david-dm.org/suiteplus/ns-export
 [david-image]: https://david-dm.org/suiteplus/ns-export.svg
