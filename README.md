@@ -1,5 +1,6 @@
 # ns-export [![NPM version][npm-image]][npm-url] 
-Export Record Type metadata to JSON
+
+Export Netsuite's Record Type metadata to JSON.
 
 ### Require
 
@@ -15,16 +16,11 @@ Export Record Type metadata to JSON
  
 ### Usage
 
-**Command Line with nsconfig.json**
+_nsexport_ uses [phantomjs](http://www.phantomjs.org) to peek into an account and
+fetch metadata.
 
-```bash 
-   nsexport customrecord_japo 1 
-```
-
-**Example of nsconfig.jsn**
-
-You can save nsconfing.json in ~/.ns/nsconfig.json. 
-Read more in [nsconfig](htts://github.com/suiteplus/nsconfig). 
+  1. Set up your credentials by creating a [nsconfig.json](htts://github.com/suiteplus/nsconfig) file in your current path 
+or in `~/.ns/` using the following template: 
 
 ```json
 {
@@ -46,6 +42,13 @@ Read more in [nsconfig](htts://github.com/suiteplus/nsconfig).
   ]
 } 
 ```
+
+  2. Invoke the CLI tool.
+
+```bash 
+   nsexport customrecord_japo 1 
+```
+
 
 [david-url]: https://david-dm.org/suiteplus/ns-export
 [david-image]: https://david-dm.org/suiteplus/ns-export.svg
