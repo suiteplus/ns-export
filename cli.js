@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-'use strict';
+'use strict'
 
 var yarr = require('yargs')
     .usage('Usage: nsexport <command> [options]')
@@ -33,7 +33,13 @@ var nsconfig = require('nsconfig');
 
 var custom_params = [{ name : 'quiz' , required : true }];
 
-var config = nsconfig({}, custom_params);
+try {
+    var config = nsconfig({}, custom_params);
+} catch(e) {
+    process.stdout.write(e.message)
+    process.stdout.write('\n')
+    return;
+}
 
 // #####################################
 // read command line options

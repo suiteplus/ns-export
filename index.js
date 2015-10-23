@@ -1,5 +1,5 @@
 'use strict';
-var args = null,//require('system').args,
+var args = require('system').args,
     fs = require('fs'),
     dirWork;
 
@@ -40,8 +40,7 @@ if (fs.exists(tempDir)) fs.removeTree(tempDir);
 
 var base = config.realm ? 'system.' + config.realm : 'system.netsuite.com',
     sysURL = 'https://'+base,
-    dotIdx = sysURL.indexOf('.'),
-    na1URL = sysURL.substring(0, dotIdx) + '.na1' + sysURL.substring(dotIdx);
+    na1URL = sysURL;
 
 casper.start();
 
