@@ -1,5 +1,6 @@
 'use strict';
-var args = require('system').args,
+var system = require('system'),
+    args = system.args,
     fs = require('fs'),
     dirWork;
 
