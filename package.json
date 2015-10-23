@@ -33,7 +33,7 @@
     "casperjs": "^1.1.0-beta3",
     "jquery": "^2.1.4",
     "moment": "^2.10.6",
-    "nsconfig": "0.3.0",
+    "nsconfig": "^0.3.0",
     "phantomjs": "^1.9.18",
     "yargs": "^3.27.0"
   }
