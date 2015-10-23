@@ -29,31 +29,17 @@ if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir);
 }
 
-var _ = {
-        extend: require('nsconfig/node_modules/lodash.assign')
-    },
-    osenv = require('nsconfig/node_modules/osenv');
+var nsconfig = require('nsconfig');
 
-// #####################################
-// Fix nsconfig
-// #####################################
-function readConfFile(path) {
-    var out = {};
-    if (!fs.existsSync(path)) return out;
-    try {
-        var content = fs.readFileSync(path);
-        out = JSON.parse(content);
-    } catch (e) {
-        //purposely ignore
-        console.error(e);
-    }
+var custom_params = [{ name : 'quiz' , required : true }];
 
-    return out;
+try {
+    var config = nsconfig({}, custom_params);
+} catch(e) {
+    process.stdout.write(e.message)
+    process.stdout.write('\n')
+    return;
 }
-var confFileGlobal = readConfFile(osenv.home() + '/.ns/nsconfig.json'),
-    confFileLocal = readConfFile(__dirname + '/nsconfig');
-
-var config = _.extend({}, confFileGlobal, confFileLocal);
 
 // #####################################
 // read command line options
