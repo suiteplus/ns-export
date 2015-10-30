@@ -1,20 +1,30 @@
 {
   "code": "category",
   "id": -110,
-  "name": "Category",
+  "translations": {
+    "en": "Category"
+  },
   "inactive": false,
   "fields": [
     {
       "code": "name",
       "id": 0,
-      "desc": "Name",
+      "translations": {
+        "en": {
+          "label": "Name"
+        }
+      },
       "type": "STRING",
       "mandatory": true
     },
     {
       "code": "isinactive",
       "id": 0,
-      "desc": "Inactive",
+      "translations": {
+        "en": {
+          "label": "Inactive"
+        }
+      },
       "type": "CHECKBOX",
       "mandatory": false,
       "default": true

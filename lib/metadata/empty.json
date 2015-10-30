@@ -1,20 +1,30 @@
 {
-  "code": "account",
+  "code": "-",
   "id": 0,
-  "name": "Account",
+  "translations": {
+    "en": "-"
+  },
   "inactive": false,
   "fields": [
     {
       "code": "name",
       "id": 0,
-      "desc": "Name",
+      "translations": {
+        "en": {
+          "label": "Name"
+        }
+      },
       "type": "STRING",
       "mandatory": true
     },
     {
       "code": "isinactive",
       "id": 0,
-      "desc": "Inactive",
+      "translations": {
+        "en": {
+          "label": "Inactive"
+        }
+      },
       "type": "CHECKBOX",
       "mandatory": false,
       "default": true
