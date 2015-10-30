@@ -1,12 +1,35 @@
 [
   {
-    "id": "-7"
+    "id": "-7",
+    "name": "Job"
   },
   {
-    "id": "-24"
+    "id": "-22",
+    "name": "Call"
   },
   {
-    "id": "-26"
+    "id": "-24",
+    "name": "Campaign"
+  },
+  {
+    "id": "-113",
+    "name": "Product Version"
+  },
+  {
+    "id": "-114",
+    "name": "Product Build"
+  },
+  {
+    "id": "-115",
+    "name": "Product"
+  },
+  {
+    "id": "-116",
+    "name": "Module"
+  },
+  {
+    "id": "-26",
+    "name": "Issue"
   },
   {
     "id": "-112",
