@@ -29,17 +29,9 @@ if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir);
 }
 
-var nsconfig = require('nsconfig');
-
-var custom_params = [{ name : 'quiz' , required : true }];
-
-try {
-    var config = nsconfig({}, custom_params);
-} catch(e) {
-    process.stdout.write(e.message)
-    process.stdout.write('\n')
-    return;
-}
+var nsconfig = require('nsconfig'),
+    custom_params = [{ name : 'quiz' , required : true }],
+    config = nsconfig({}, custom_params);
 
 // #####################################
 // read command line options
