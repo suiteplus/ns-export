@@ -1,0 +1,833 @@
+<html>
+<head>
+<link href="../../jquery-ui.css" rel="stylesheet">
+<link href="../../schema-browser.css" rel="stylesheet">
+<script src="../../javascript/jquery-1.10.2.min.js"></script>
+<script src="../../javascript/jquery-ui.min.js"></script>
+<script src="../../menudefs.js"></script>
+<script src="../../javascript/menubuilder.js"></script>
+
+<script>
+    (function( $ ){
+        //plugin buttonset vertical
+        $.fn.buttonsetv = function() {
+            $(':radio, :checkbox, :button', this).wrap('<div style="margin: 1px"/>');
+            $(this).buttonset();
+            $('label:first', this).removeClass('ui-corner-left').addClass('ui-corner-top');
+            $('label:last', this).removeClass('ui-corner-right').addClass('ui-corner-bottom');
+            mw = 0; // max witdh
+            $('label', this).each(function(index){
+                w = $(this).width();
+                if (w > mw) mw = w;
+            })
+            $('label', this).each(function(index){
+                $(this).width(mw);
+            })
+        };
+    })( jQuery );
+
+    function getURLParameter(name) {
+        return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+    }
+</script>
+
+<style>
+    .custom-combobox {
+        position: relative;
+        display: inline-block;
+    }
+    .custom-combobox-toggle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        margin-left: -1px;
+        padding: 0;
+        /* support: IE7 */
+        *height: 1.7em;
+        *top: 0.1em;
+    }
+    .custom-combobox-input {
+        margin: 0;
+        padding: 0.3em;
+    }
+</style>
+
+
+<script>
+    (function( $ ) {
+        $.widget( "custom.combobox_with_optgroup", {
+            _create: function() {
+                this.wrapper = $( "<span>" )
+                        .addClass( "custom-combobox" )
+                        .insertAfter( this.element );
+                this.element.hide();
+                this._createAutocomplete();
+                this._createShowAllButton();
+            },
+            _createAutocomplete: function() {
+                var selected = this.element.find( ":selected" ),
+                        value = selected.val() ? selected.text() : "";
+                this.input = $( "<input>" )
+                        .appendTo( this.wrapper )
+                        .val( value )
+                        .attr( "title", "" )
+                        .addClass( "custom-combobox-input ui-widget ui-widget-content ui-state-default ui-corner-left" )
+                        .autocomplete({
+                                          delay: 0,
+                                          minLength: 0,
+                                          source: $.proxy( this, "_source" )
+                                      })
+                        .tooltip({
+                                     tooltipClass: "ui-state-highlight"
+                                 })
+                        ;
+                this._on( this.input, {
+                    autocompleteselect: function( event, ui ) {
+                        ui.item.option.selected = true;
+                        window.location.href=ui.item.href;
+//                        this._trigger( "select", event, {
+//                            item: ui.item.option
+//                        });
+                    },
+                    autocompletechange: "_removeIfInvalid"
+                });
+
+                this.input.data("uiAutocomplete")._renderMenu = function(ul, items) {
+                    var self = this,
+                    currentCategory = "";
+                    var itemCounter=100;
+                    $.each(items, function(index, item) {
+                        itemCounter=itemCounter+1;
+                        if (item.category != currentCategory) {
+                            if (item.category) {
+                                ul.append("<li class='custom-autocomplete-category'>" + item.category + "</li>");
+                            }
+                            currentCategory = item.category;
+                        }
+                        self._renderItem= function( ul, item ) {
+                            return $( "<li>").attr("class",item.class)
+                                    .append( $( "<a>" ).attr("href",item.href).text( item.label ) )
+                                    .appendTo( ul );
+                        };
+                        self._renderItemData(ul, item);
+                    });
+                };
+            },
+
+            _createShowAllButton: function() {
+                var input = this.input,
+                        wasOpen = false;
+                $( "<a>" )
+                        .attr( "tabIndex", -1 )
+                        .attr( "title", "Show All" )
+                        .tooltip()
+                        .appendTo( this.wrapper )
+                        .button({
+                                   /* icons: {
+                                        primary: "ui-icon-triangle-1-s"
+                                    },*/
+                                    text: false
+                                })
+                        .removeClass( "ui-corner-all" )
+                        .addClass( "custom-combobox-toggle ui-corner-right" )
+                        .mousedown(function() {
+                                       wasOpen = input.autocomplete( "widget" ).is( ":visible" );
+                                   })
+                        .click(function() {
+                                   input.focus();
+
+                                   if ( wasOpen ) {
+                                       return;
+                                   }
+
+                                   input.autocomplete( "search", "" );
+                               });
+            },
+            _source: function( request, response ) {
+                var matcher = new RegExp( $.ui.autocomplete.escapeRegex(request.term), "i" );
+                response( this.element.find( "option" ).map(function() {
+                    var text = $( this ).text();
+                    if ( this.value && ( !request.term || matcher.test(text) ) )
+                        return {
+                            label: text,
+                            value: text,
+                            option: this,
+                            class: $(this).attr("class"),
+                            href: $(this).attr("href"),
+                            category: $(this).closest("optgroup").attr("label")
+                        };
+                }) );
+            },
+            _removeIfInvalid: function( event, ui ) {
+
+                if ( ui.item ) {
+                    return;
+                }
+
+                var value = this.input.val(),
+                        valueLowerCase = value.toLowerCase(),
+                        valid = false;
+                this.element.find( "option" ).each(function() {
+                    if ( $( this ).text().toLowerCase() === valueLowerCase ) {
+                        this.selected = valid = true;
+                        return false;
+                    }
+                });
+
+                if ( valid ) {
+                    return;
+                }
+
+                this.input
+                        .val( "" )
+                        .attr( "title", value + " not found" )
+                        .tooltip( "open" );
+                this.element.val( "" );
+                this._delay(function() {
+                    this.input.tooltip( "close" ).attr( "title", "" );
+                }, 2500 );
+                this.input.data( "ui-autocomplete" ).term = "";
+            },
+            _destroy: function() {
+                this.wrapper.remove();
+                this.element.show();
+            },
+            getInput: function(){
+                return this.input;
+            }
+        });
+    })( jQuery );
+</script>
+
+</head>
+
+<body>
+
+     <div id='header'></div>
+     <script>
+         $(function() {
+             $('#header').html(createHeader('script','record__amortizationschedule','../..'));
+         });
+     </script>
+
+
+    <div id='leftpanel'></div>
+    <script>
+        $(function() {
+            $('#leftpanel').html(createLeftPanel('script','record__amortizationschedule','../..'));
+        });
+    </script>
+
+
+<script type="text/javascript">
+    $().ready(function(){
+        $(".jtable th").each(function(){
+
+            $(this).addClass("ui-state-default");
+
+        });
+        $(".jtable td").each(function(){
+
+            $(this).addClass("ui-widget-content");
+
+        });
+
+    });
+</script>
+
+
+<div id="contentPanel">
+
+<H1>Amortization Schedule</H1>
+<H3>Internal ID: amortizationschedule</H3>
+
+
+
+
+
+    <H2>Fields</H2>
+    <table class="jtable">
+        <tr><th class="rt_fname">Internal ID</th><th class="rt_ftype">Type</th><th class="rt_fdle">nlapiSubmitField</th><th class="rt_flabel">Label</th><th class="rt_freq">Required</th><th class="rt_fhelp">Help</th></tr>
+            <tr id="field_accountingbook">
+                <td class="rt_fname">accountingbook</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Accounting Book</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_amortizationtype">
+                <td class="rt_fname">amortizationtype</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Type</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_enddate">
+                <td class="rt_fname">enddate</td>
+                <td class="rt_ftype">date</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">End Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_externalid">
+                <td class="rt_fname">externalid</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">ExternalId</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_initialamount">
+                <td class="rt_fname">initialamount</td>
+                <td class="rt_ftype">rate</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Initial Amount</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_isinactive">
+                <td class="rt_fname">isinactive</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Inactive</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_job">
+                <td class="rt_fname">job</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Project</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_name">
+                <td class="rt_fname">name</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Name</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_parentSched">
+                <td class="rt_fname">parentSched</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Template</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_periodoffset">
+                <td class="rt_fname">periodoffset</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Period Offset</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_recogintervalsrc">
+                <td class="rt_fname">recogintervalsrc</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Term Source</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_recurrencetype">
+                <td class="rt_fname">recurrencetype</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Method</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_remainingdeferredbalance">
+                <td class="rt_fname">remainingdeferredbalance</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Remaining Deferred Balance</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_residual">
+                <td class="rt_fname">residual</td>
+                <td class="rt_ftype">rate</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Residual</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_revrecoffset">
+                <td class="rt_fname">revrecoffset</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Start Offset</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_schedulenumber">
+                <td class="rt_fname">schedulenumber</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Number</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_sourcetran">
+                <td class="rt_fname">sourcetran</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Created From</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_startdate">
+                <td class="rt_fname">startdate</td>
+                <td class="rt_ftype">date</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Start Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_status">
+                <td class="rt_fname">status</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Status</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_totalamortized">
+                <td class="rt_fname">totalamortized</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Total Amortized</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_totalamount">
+                <td class="rt_fname">totalamount</td>
+                <td class="rt_ftype">currency2</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Amount</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+    </table>
+
+    <H2>Sublists</H2>
+            <H4><span id="field_recurrence_">recurrence - Custom Recurrence Pattern</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_recurrence_defrevaccount">
+                        <td class="rt_sname">defrevaccount</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Account</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_recurrence_id">
+                        <td class="rt_sname">id</td>
+                        <td class="rt_stype">integer</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_recurrence_incomeaccount">
+                        <td class="rt_sname">incomeaccount</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_recurrence_isrecognized">
+                        <td class="rt_sname">isrecognized</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Is Recognized</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_recurrence_jdate">
+                        <td class="rt_sname">jdate</td>
+                        <td class="rt_stype">date</td>
+                        <td class="rt_slabel">Date Executed</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_recurrence_journal">
+                        <td class="rt_sname">journal</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Journal</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_recurrence_periodoffset">
+                        <td class="rt_sname">periodoffset</td>
+                        <td class="rt_stype">integer</td>
+                        <td class="rt_slabel">Period Offset</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_recurrence_postingperiod">
+                        <td class="rt_sname">postingperiod</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_recurrence_recamount">
+                        <td class="rt_sname">recamount</td>
+                        <td class="rt_stype">rate</td>
+                        <td class="rt_slabel">Amount</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_recurrence_recurdate">
+                        <td class="rt_sname">recurdate</td>
+                        <td class="rt_stype">date</td>
+                        <td class="rt_slabel">Date</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+
+
+
+    <H2>Search Joins</H2>
+    <table class="jtable">
+        <tr><th class="rt_jid">Join ID</th><th class="rt_jlabel">Join Description</th><th class="rt_jname">Actual Join Name</th></tr>
+            <tr>
+                <td class="rt_jid">user</td>
+                <td class="rt_jlabel">User</td>
+                <td class="rt_jname">Employee</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">vendor</td>
+                <td class="rt_jlabel">Vendor</td>
+                <td class="rt_jname">Vendor</td>
+            </tr>
+    </table>
+
+    <H2>Search Filters</H2>
+    <table class="jtable">
+        <tr><th class="rt_iname">Internal ID</th><th class="rt_itype">Type</th><th class="rt_ilabel">Label</th></tr>
+            <tr>
+                <td class="rt_iname">accountingbook</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Accounting Book</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">amorstatus</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Status</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">amortizedamount</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Total Amortized</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">amortype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">amount</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Amount</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">currencyname</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Schedule Currency</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">deferredamount</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Remaining Deferred Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">destacct</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Destination Account</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formuladate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulanumeric</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulatext</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">initialamt</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Initial Amount</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalidnumber</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Internal ID (Number)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isrecognized</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Is Recognized?</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">name</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Schedule Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">pctcomplete</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">% Complete</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">pctrecognition</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">% Recog.</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">periodoffset</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Period Offset</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">postperiod</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Posting Period</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">residual</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Residual</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">scheddate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">schedulenumber</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Number</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">schedulenumbertext</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Number/ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">sourceacct</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Source Account</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">srctranpostperiod</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Source Transaction Posting Period</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">srctrantype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Transaction Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">startoffset</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Start Offset</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">templatename</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Template Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">useforeignamounts</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Use Transaction Currency</td>
+            </tr>
+    </table>
+
+    <H2>Search Columns</H2>
+    <table class="jtable">
+        <tr><th class="rt_cname">Internal ID</th><th class="rt_ctype">Type</th><th class="rt_clabel">Label</th></tr>
+            <tr>
+                <td class="rt_cname">accountingbook</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Accounting Book</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">amorstatus</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Status</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">amortemplate</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Template Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">amortizedamount</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Total Amortized</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">amortype</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">amount</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Amount (Schedule Total)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">currency</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Schedule Currency</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">deferredamount</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Remaining Deferred Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">destacct</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Destination Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulacurrency</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Formula (Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladatetime</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Formula (Date/Time)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulanumeric</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulapercent</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">Formula (Percent)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulatext</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">initialamt</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Initial Amount</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">internalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isrecognized</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Is Recognized?</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">name</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Schedule Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">pctcomplete</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">% Complete</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">pctrecognition</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">% Recog.</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">periodoffset</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Period Offset</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">recuramount</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Amount</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">recurfxamount</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Amount (Foreign Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">residual</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Residual</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">scheddate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">schedulenumber</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Number</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">sourceacct</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Source Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">srctran</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Source Transaction</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">srctranpostperiod</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Posting Period</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">startoffset</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Start Offset</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">useforeignamounts</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Use Transaction Currency</td>
+            </tr>
+    </table>
+
+    <p>&nbsp;</p>
+</div>
+    <script>
+         $(function() {
+             wrapBodyDiv('script','contentPanel');
+         });
+    </script>
+
+</body>
+</html>

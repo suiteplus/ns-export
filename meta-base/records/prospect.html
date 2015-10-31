@@ -1,0 +1,3453 @@
+<html>
+<head>
+<link href="../../jquery-ui.css" rel="stylesheet">
+<link href="../../schema-browser.css" rel="stylesheet">
+<script src="../../javascript/jquery-1.10.2.min.js"></script>
+<script src="../../javascript/jquery-ui.min.js"></script>
+<script src="../../menudefs.js"></script>
+<script src="../../javascript/menubuilder.js"></script>
+
+<script>
+    (function( $ ){
+        //plugin buttonset vertical
+        $.fn.buttonsetv = function() {
+            $(':radio, :checkbox, :button', this).wrap('<div style="margin: 1px"/>');
+            $(this).buttonset();
+            $('label:first', this).removeClass('ui-corner-left').addClass('ui-corner-top');
+            $('label:last', this).removeClass('ui-corner-right').addClass('ui-corner-bottom');
+            mw = 0; // max witdh
+            $('label', this).each(function(index){
+                w = $(this).width();
+                if (w > mw) mw = w;
+            })
+            $('label', this).each(function(index){
+                $(this).width(mw);
+            })
+        };
+    })( jQuery );
+
+    function getURLParameter(name) {
+        return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+    }
+</script>
+
+<style>
+    .custom-combobox {
+        position: relative;
+        display: inline-block;
+    }
+    .custom-combobox-toggle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        margin-left: -1px;
+        padding: 0;
+        /* support: IE7 */
+        *height: 1.7em;
+        *top: 0.1em;
+    }
+    .custom-combobox-input {
+        margin: 0;
+        padding: 0.3em;
+    }
+</style>
+
+
+<script>
+    (function( $ ) {
+        $.widget( "custom.combobox_with_optgroup", {
+            _create: function() {
+                this.wrapper = $( "<span>" )
+                        .addClass( "custom-combobox" )
+                        .insertAfter( this.element );
+                this.element.hide();
+                this._createAutocomplete();
+                this._createShowAllButton();
+            },
+            _createAutocomplete: function() {
+                var selected = this.element.find( ":selected" ),
+                        value = selected.val() ? selected.text() : "";
+                this.input = $( "<input>" )
+                        .appendTo( this.wrapper )
+                        .val( value )
+                        .attr( "title", "" )
+                        .addClass( "custom-combobox-input ui-widget ui-widget-content ui-state-default ui-corner-left" )
+                        .autocomplete({
+                                          delay: 0,
+                                          minLength: 0,
+                                          source: $.proxy( this, "_source" )
+                                      })
+                        .tooltip({
+                                     tooltipClass: "ui-state-highlight"
+                                 })
+                        ;
+                this._on( this.input, {
+                    autocompleteselect: function( event, ui ) {
+                        ui.item.option.selected = true;
+                        window.location.href=ui.item.href;
+//                        this._trigger( "select", event, {
+//                            item: ui.item.option
+//                        });
+                    },
+                    autocompletechange: "_removeIfInvalid"
+                });
+
+                this.input.data("uiAutocomplete")._renderMenu = function(ul, items) {
+                    var self = this,
+                    currentCategory = "";
+                    var itemCounter=100;
+                    $.each(items, function(index, item) {
+                        itemCounter=itemCounter+1;
+                        if (item.category != currentCategory) {
+                            if (item.category) {
+                                ul.append("<li class='custom-autocomplete-category'>" + item.category + "</li>");
+                            }
+                            currentCategory = item.category;
+                        }
+                        self._renderItem= function( ul, item ) {
+                            return $( "<li>").attr("class",item.class)
+                                    .append( $( "<a>" ).attr("href",item.href).text( item.label ) )
+                                    .appendTo( ul );
+                        };
+                        self._renderItemData(ul, item);
+                    });
+                };
+            },
+
+            _createShowAllButton: function() {
+                var input = this.input,
+                        wasOpen = false;
+                $( "<a>" )
+                        .attr( "tabIndex", -1 )
+                        .attr( "title", "Show All" )
+                        .tooltip()
+                        .appendTo( this.wrapper )
+                        .button({
+                                   /* icons: {
+                                        primary: "ui-icon-triangle-1-s"
+                                    },*/
+                                    text: false
+                                })
+                        .removeClass( "ui-corner-all" )
+                        .addClass( "custom-combobox-toggle ui-corner-right" )
+                        .mousedown(function() {
+                                       wasOpen = input.autocomplete( "widget" ).is( ":visible" );
+                                   })
+                        .click(function() {
+                                   input.focus();
+
+                                   if ( wasOpen ) {
+                                       return;
+                                   }
+
+                                   input.autocomplete( "search", "" );
+                               });
+            },
+            _source: function( request, response ) {
+                var matcher = new RegExp( $.ui.autocomplete.escapeRegex(request.term), "i" );
+                response( this.element.find( "option" ).map(function() {
+                    var text = $( this ).text();
+                    if ( this.value && ( !request.term || matcher.test(text) ) )
+                        return {
+                            label: text,
+                            value: text,
+                            option: this,
+                            class: $(this).attr("class"),
+                            href: $(this).attr("href"),
+                            category: $(this).closest("optgroup").attr("label")
+                        };
+                }) );
+            },
+            _removeIfInvalid: function( event, ui ) {
+
+                if ( ui.item ) {
+                    return;
+                }
+
+                var value = this.input.val(),
+                        valueLowerCase = value.toLowerCase(),
+                        valid = false;
+                this.element.find( "option" ).each(function() {
+                    if ( $( this ).text().toLowerCase() === valueLowerCase ) {
+                        this.selected = valid = true;
+                        return false;
+                    }
+                });
+
+                if ( valid ) {
+                    return;
+                }
+
+                this.input
+                        .val( "" )
+                        .attr( "title", value + " not found" )
+                        .tooltip( "open" );
+                this.element.val( "" );
+                this._delay(function() {
+                    this.input.tooltip( "close" ).attr( "title", "" );
+                }, 2500 );
+                this.input.data( "ui-autocomplete" ).term = "";
+            },
+            _destroy: function() {
+                this.wrapper.remove();
+                this.element.show();
+            },
+            getInput: function(){
+                return this.input;
+            }
+        });
+    })( jQuery );
+</script>
+
+</head>
+
+<body>
+
+     <div id='header'></div>
+     <script>
+         $(function() {
+             $('#header').html(createHeader('script','record__prospect','../..'));
+         });
+     </script>
+
+
+    <div id='leftpanel'></div>
+    <script>
+        $(function() {
+            $('#leftpanel').html(createLeftPanel('script','record__prospect','../..'));
+        });
+    </script>
+
+
+<script type="text/javascript">
+    $().ready(function(){
+        $(".jtable th").each(function(){
+
+            $(this).addClass("ui-state-default");
+
+        });
+        $(".jtable td").each(function(){
+
+            $(this).addClass("ui-widget-content");
+
+        });
+
+    });
+</script>
+
+
+<div id="contentPanel">
+
+<H1>Prospect</H1>
+<H3>Internal ID: prospect</H3>
+
+
+
+
+
+    <H2>Fields</H2>
+    <table class="jtable">
+        <tr><th class="rt_fname">Internal ID</th><th class="rt_ftype">Type</th><th class="rt_fdle">nlapiSubmitField</th><th class="rt_flabel">Label</th><th class="rt_freq">Required</th><th class="rt_fhelp">Help</th></tr>
+            <tr id="field_accessrole">
+                <td class="rt_fname">accessrole</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Role</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_accountnumber">
+                <td class="rt_fname">accountnumber</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Account</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_altemail">
+                <td class="rt_fname">altemail</td>
+                <td class="rt_ftype">email</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Alt. E-mail</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_altphone">
+                <td class="rt_fname">altphone</td>
+                <td class="rt_ftype">phone</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Alt. Phone</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_autoname">
+                <td class="rt_fname">autoname</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Auto</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_balance">
+                <td class="rt_fname">balance</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Balance</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_billaddr1">
+                <td class="rt_fname">billaddr1</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_billaddr2">
+                <td class="rt_fname">billaddr2</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_billaddr3">
+                <td class="rt_fname">billaddr3</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_billcity">
+                <td class="rt_fname">billcity</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_billcountry">
+                <td class="rt_fname">billcountry</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_billpay">
+                <td class="rt_fname">billpay</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Enable Online Bill Pay</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_billstate">
+                <td class="rt_fname">billstate</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_billzip">
+                <td class="rt_fname">billzip</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_buyingreason">
+                <td class="rt_fname">buyingreason</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Buying Reason</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_buyingtimeframe">
+                <td class="rt_fname">buyingtimeframe</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Buying Time Frame</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_campaigncategory">
+                <td class="rt_fname">campaigncategory</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Campaign Category</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_category">
+                <td class="rt_fname">category</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Category</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_clickstream">
+                <td class="rt_fname">clickstream</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Clickstream (1st Visit)</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_comments">
+                <td class="rt_fname">comments</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Comments</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_companyname">
+                <td class="rt_fname">companyname</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Company Name</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_consolbalance">
+                <td class="rt_fname">consolbalance</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Consolidated</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_consoldaysoverdue">
+                <td class="rt_fname">consoldaysoverdue</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Consolidated</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_consoldepositbalance">
+                <td class="rt_fname">consoldepositbalance</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Consolidated</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_consoloverduebalance">
+                <td class="rt_fname">consoloverduebalance</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Consolidated</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_consolunbilledorders">
+                <td class="rt_fname">consolunbilledorders</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Consolidated</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_contact">
+                <td class="rt_fname">contact</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Primary Contact</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_creditholdoverride">
+                <td class="rt_fname">creditholdoverride</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Hold</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_creditlimit">
+                <td class="rt_fname">creditlimit</td>
+                <td class="rt_ftype">poscurrency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Credit Limit</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_currency">
+                <td class="rt_fname">currency</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Currency</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_currencyprecision">
+                <td class="rt_fname">currencyprecision</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Currency Precision</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_customform">
+                <td class="rt_fname">customform</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Custom Form</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_datecreated">
+                <td class="rt_fname">datecreated</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Date Created</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_daysoverdue">
+                <td class="rt_fname">daysoverdue</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Days Overdue</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_defaultaddress">
+                <td class="rt_fname">defaultaddress</td>
+                <td class="rt_ftype">address</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Address</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_defaultbankaccount">
+                <td class="rt_fname">defaultbankaccount</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Bank Account</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_depositbalance">
+                <td class="rt_fname">depositbalance</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Deposit Balance</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_draccount">
+                <td class="rt_fname">draccount</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Deferred Revenue Reclassification Account</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_email">
+                <td class="rt_fname">email</td>
+                <td class="rt_ftype">email</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">E-Mail</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_emailpreference">
+                <td class="rt_fname">emailpreference</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">E-Mail Preference</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_emailtransactions">
+                <td class="rt_fname">emailtransactions</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Email</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_entityid">
+                <td class="rt_fname">entityid</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Customer ID</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_entitystatus">
+                <td class="rt_fname">entitystatus</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Status</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_estimatedbudget">
+                <td class="rt_fname">estimatedbudget</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Estimated Budget</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_externalid">
+                <td class="rt_fname">externalid</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">ExternalId</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_fax">
+                <td class="rt_fname">fax</td>
+                <td class="rt_ftype">phone</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Fax</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_faxtransactions">
+                <td class="rt_fname">faxtransactions</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Fax</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_firstname">
+                <td class="rt_fname">firstname</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Name</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_firstvisit">
+                <td class="rt_fname">firstvisit</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Date of First Visit</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_fxaccount">
+                <td class="rt_fname">fxaccount</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Foreign Currency Adjustment Revenue Account</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_giveaccess">
+                <td class="rt_fname">giveaccess</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Give Access</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_globalsubscriptionstatus">
+                <td class="rt_fname">globalsubscriptionstatus</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Global Subscription Status</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_homephone">
+                <td class="rt_fname">homephone</td>
+                <td class="rt_ftype">phone</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Home Phone</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_image">
+                <td class="rt_fname">image</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Image</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_isbudgetapproved">
+                <td class="rt_fname">isbudgetapproved</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Budget Approved</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_isinactive">
+                <td class="rt_fname">isinactive</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Inactive</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_isjob">
+                <td class="rt_fname">isjob</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_isperson">
+                <td class="rt_fname">isperson</td>
+                <td class="rt_ftype">radio</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Company</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_keywords">
+                <td class="rt_fname">keywords</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Search Engine Keywords (1st Visit)</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_language">
+                <td class="rt_fname">language</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Language</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_lastmodifieddate">
+                <td class="rt_fname">lastmodifieddate</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Last Modified Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_lastname">
+                <td class="rt_fname">lastname</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_lastpagevisited">
+                <td class="rt_fname">lastpagevisited</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Last Page Visited</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_lastvisit">
+                <td class="rt_fname">lastvisit</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Date of Last Visit</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_leadsource">
+                <td class="rt_fname">leadsource</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Lead Source</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_middlename">
+                <td class="rt_fname">middlename</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_mobilephone">
+                <td class="rt_fname">mobilephone</td>
+                <td class="rt_ftype">phone</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Mobile Phone</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_monthlyclosing">
+                <td class="rt_fname">monthlyclosing</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Monthly Closing Date</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_negativenumberformat">
+                <td class="rt_fname">negativenumberformat</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Negative Number Format</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_numberformat">
+                <td class="rt_fname">numberformat</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Number Format</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_openingbalance">
+                <td class="rt_fname">openingbalance</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Opening Balance</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_openingbalanceaccount">
+                <td class="rt_fname">openingbalanceaccount</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Opening Balance Account</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_openingbalancedate">
+                <td class="rt_fname">openingbalancedate</td>
+                <td class="rt_ftype">date</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Opening Balance Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_otherrelationships">
+                <td class="rt_fname">otherrelationships</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Other Relationships</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_overduebalance">
+                <td class="rt_fname">overduebalance</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Overdue Balance</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_parent">
+                <td class="rt_fname">parent</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Child Of</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_partner">
+                <td class="rt_fname">partner</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Partner</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_phone">
+                <td class="rt_fname">phone</td>
+                <td class="rt_ftype">phone</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Phone</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_phoneticname">
+                <td class="rt_fname">phoneticname</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Furigana</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_prefccprocessor">
+                <td class="rt_fname">prefccprocessor</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Pref. CC Processor</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_pricelevel">
+                <td class="rt_fname">pricelevel</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Price Level</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_printoncheckas">
+                <td class="rt_fname">printoncheckas</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Print on Check As</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_printtransactions">
+                <td class="rt_fname">printtransactions</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Print</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_probability">
+                <td class="rt_fname">probability</td>
+                <td class="rt_ftype">percent</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Probability</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_receivablesaccount">
+                <td class="rt_fname">receivablesaccount</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Default Receivables Account</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_referrer">
+                <td class="rt_fname">referrer</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Referrer (1st Visit)</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_resalenumber">
+                <td class="rt_fname">resalenumber</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Resale Number</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_salesreadiness">
+                <td class="rt_fname">salesreadiness</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Sales Readiness</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_salesrep">
+                <td class="rt_fname">salesrep</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Sales Rep</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_salutation">
+                <td class="rt_fname">salutation</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Mr./Ms...</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_sendemail">
+                <td class="rt_fname">sendemail</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Send Notification E-mail</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_stage">
+                <td class="rt_fname">stage</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_startdate">
+                <td class="rt_fname">startdate</td>
+                <td class="rt_ftype">date</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Start Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_strength">
+                <td class="rt_fname">strength</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Password Strength</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_subsidiary">
+                <td class="rt_fname">subsidiary</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Subsidiary</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_syncpartnerteams">
+                <td class="rt_fname">syncpartnerteams</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Update Transactions</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_syncsalesteams">
+                <td class="rt_fname">syncsalesteams</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Update Transactions</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_taxable">
+                <td class="rt_fname">taxable</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Taxable</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_taxfractionunit">
+                <td class="rt_fname">taxfractionunit</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Tax Rounding Precision</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_taxitem">
+                <td class="rt_fname">taxitem</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Tax Item</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_taxrounding">
+                <td class="rt_fname">taxrounding</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Tax Rounding Method</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_terms">
+                <td class="rt_fname">terms</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Terms</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_territory">
+                <td class="rt_fname">territory</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Territory</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_title">
+                <td class="rt_fname">title</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Job Title</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_unbilledorders">
+                <td class="rt_fname">unbilledorders</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Unbilled Orders</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_unsubscribe">
+                <td class="rt_fname">unsubscribe</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Unsubscribe from Campaigns</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_url">
+                <td class="rt_fname">url</td>
+                <td class="rt_ftype">url</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Web Address</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_vatregnumber">
+                <td class="rt_fname">vatregnumber</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Tax Reg. Number</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_visits">
+                <td class="rt_fname">visits</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Number of Visits</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_weblead">
+                <td class="rt_fname">weblead</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Web Lead</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+    </table>
+
+    <H2>Sublists</H2>
+            <H4><span id="field_addressbook_">addressbook - Address</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_addressbook_addr1">
+                        <td class="rt_sname">addr1</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Address 1</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_addr2">
+                        <td class="rt_sname">addr2</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Address 2</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_addr3">
+                        <td class="rt_sname">addr3</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_addressee">
+                        <td class="rt_sname">addressee</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Addressee</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_addressid">
+                        <td class="rt_sname">addressid</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_addrtext">
+                        <td class="rt_sname">addrtext</td>
+                        <td class="rt_stype">address</td>
+                        <td class="rt_slabel">Address</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_attention">
+                        <td class="rt_sname">attention</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Attention</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_city">
+                        <td class="rt_sname">city</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">City</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_country">
+                        <td class="rt_sname">country</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Country</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_defaultbilling">
+                        <td class="rt_sname">defaultbilling</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Default Billing</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_defaultshipping">
+                        <td class="rt_sname">defaultshipping</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Default Shipping</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_displaystate">
+                        <td class="rt_sname">displaystate</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">State/Province</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_id">
+                        <td class="rt_sname">id</td>
+                        <td class="rt_stype">integer</td>
+                        <td class="rt_slabel">ID</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_internalid">
+                        <td class="rt_sname">internalid</td>
+                        <td class="rt_stype">integer</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_isresidential">
+                        <td class="rt_sname">isresidential</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Residential Address</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_label">
+                        <td class="rt_sname">label</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Label</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_override">
+                        <td class="rt_sname">override</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Override</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_phone">
+                        <td class="rt_sname">phone</td>
+                        <td class="rt_stype">phone</td>
+                        <td class="rt_slabel">Phone</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_state">
+                        <td class="rt_sname">state</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">State/Province</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_addressbook_zip">
+                        <td class="rt_sname">zip</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Zip</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_contactroles_">contactroles - Contacts</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_contactroles_contact">
+                        <td class="rt_sname">contact</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Contact</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_contactroles_email">
+                        <td class="rt_sname">email</td>
+                        <td class="rt_stype">email</td>
+                        <td class="rt_slabel">Email</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_contactroles_giveaccess">
+                        <td class="rt_sname">giveaccess</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Access</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_contactroles_password">
+                        <td class="rt_sname">password</td>
+                        <td class="rt_stype">password</td>
+                        <td class="rt_slabel">Password</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_contactroles_passwordconfirm">
+                        <td class="rt_sname">passwordconfirm</td>
+                        <td class="rt_stype">password</td>
+                        <td class="rt_slabel">Confirm Password</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_contactroles_role">
+                        <td class="rt_sname">role</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Role</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_contactroles_sendemail">
+                        <td class="rt_sname">sendemail</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Notify</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_contactroles_strength">
+                        <td class="rt_sname">strength</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Password Strength</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_currency_">currency - Currencies</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_currency_balance">
+                        <td class="rt_sname">balance</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Balance</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_currency_consolbalance">
+                        <td class="rt_sname">consolbalance</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Consolidated</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_currency_consoldepositbalance">
+                        <td class="rt_sname">consoldepositbalance</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Consolidated</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_currency_consoloverduebalance">
+                        <td class="rt_sname">consoloverduebalance</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Consolidated</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_currency_consolunbilledorders">
+                        <td class="rt_sname">consolunbilledorders</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Consolidated</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_currency_currency">
+                        <td class="rt_sname">currency</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Currency</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_currency_currencyformatsample">
+                        <td class="rt_sname">currencyformatsample</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Format Sample</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_currency_depositbalance">
+                        <td class="rt_sname">depositbalance</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Deposit Balance</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_currency_displaysymbol">
+                        <td class="rt_sname">displaysymbol</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Symbol</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_currency_overduebalance">
+                        <td class="rt_sname">overduebalance</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Overdue Balance</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_currency_overridecurrencyformat">
+                        <td class="rt_sname">overridecurrencyformat</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Override Currency Format</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_currency_symbolplacement">
+                        <td class="rt_sname">symbolplacement</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Symbol Placement</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_currency_unbilledorders">
+                        <td class="rt_sname">unbilledorders</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Unbilled Orders</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_download_">download - Downloads</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_download_expiration">
+                        <td class="rt_sname">expiration</td>
+                        <td class="rt_stype">date</td>
+                        <td class="rt_slabel">Expiration Date</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_download_file">
+                        <td class="rt_sname">file</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Attach File</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_download_licensecode">
+                        <td class="rt_sname">licensecode</td>
+                        <td class="rt_stype">textarea</td>
+                        <td class="rt_slabel">License Code</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_download_remainingdownloads">
+                        <td class="rt_sname">remainingdownloads</td>
+                        <td class="rt_stype">integer</td>
+                        <td class="rt_slabel">Remaining Downloads</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_grouppricing_">grouppricing - Group Pricing</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_grouppricing_group">
+                        <td class="rt_sname">group</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Pricing Group</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_grouppricing_level">
+                        <td class="rt_sname">level</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Price Level</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+            </table>
+            <H4><span id="field_itempricing_">itempricing - Item Pricing</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_itempricing_currency">
+                        <td class="rt_sname">currency</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Currency</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_itempricing_item">
+                        <td class="rt_sname">item</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Item</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_itempricing_level">
+                        <td class="rt_sname">level</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Price Level</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_itempricing_price">
+                        <td class="rt_sname">price</td>
+                        <td class="rt_stype">currency2</td>
+                        <td class="rt_slabel">Unit Price</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_partners_">partners - Partners</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_partners_contribution">
+                        <td class="rt_sname">contribution</td>
+                        <td class="rt_stype">percent</td>
+                        <td class="rt_slabel">Contribution %</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_partners_customer">
+                        <td class="rt_sname">customer</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_partners_id">
+                        <td class="rt_sname">id</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_partners_isprimary">
+                        <td class="rt_sname">isprimary</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Primary</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_partners_partner">
+                        <td class="rt_sname">partner</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Partner</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_partners_partnerrole">
+                        <td class="rt_sname">partnerrole</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Partner Role</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_salesteam_">salesteam - Sales Team</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_salesteam_contribution">
+                        <td class="rt_sname">contribution</td>
+                        <td class="rt_stype">percent</td>
+                        <td class="rt_slabel">Contribution %</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_salesteam_customer">
+                        <td class="rt_sname">customer</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_salesteam_employee">
+                        <td class="rt_sname">employee</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Employee</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_salesteam_id">
+                        <td class="rt_sname">id</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_salesteam_isprimary">
+                        <td class="rt_sname">isprimary</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Primary</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_salesteam_issalesrep">
+                        <td class="rt_sname">issalesrep</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_salesteam_salesrole">
+                        <td class="rt_sname">salesrole</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Sales Role</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+            </table>
+
+
+    <H2>Tabs</H2>
+    <table class="jtable">
+        <tr><th class="rt_tname">Name</th><th class="rt_tlabel">Label</th></tr>
+            <tr>
+                <td class="rt_tname">access</td>
+                <td class="rt_tlabel">Access</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">address</td>
+                <td class="rt_tlabel">Address</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">custom</td>
+                <td class="rt_tlabel">Custom</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">financial</td>
+                <td class="rt_tlabel">Financial</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">general</td>
+                <td class="rt_tlabel">General</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">info</td>
+                <td class="rt_tlabel">Info</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">marketing</td>
+                <td class="rt_tlabel">Marketing</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">qualification</td>
+                <td class="rt_tlabel">Qualification</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">sales</td>
+                <td class="rt_tlabel">Sales</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">support</td>
+                <td class="rt_tlabel">Support</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">workflow</td>
+                <td class="rt_tlabel">Workflow</td>
+            </tr>
+    </table>
+
+    <H2>Search Joins</H2>
+    <table class="jtable">
+        <tr><th class="rt_jid">Join ID</th><th class="rt_jlabel">Join Description</th><th class="rt_jname">Actual Join Name</th></tr>
+            <tr>
+                <td class="rt_jid">campaignresponse</td>
+                <td class="rt_jlabel">Campaign Response</td>
+                <td class="rt_jname">Campaign</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">contact</td>
+                <td class="rt_jlabel">Contact</td>
+                <td class="rt_jname">Contact</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">contactprimary</td>
+                <td class="rt_jlabel">Contact (Primary)</td>
+                <td class="rt_jname">Contact</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">job</td>
+                <td class="rt_jlabel">Job</td>
+                <td class="rt_jname">Job</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">leadsource</td>
+                <td class="rt_jlabel">Lead Source</td>
+                <td class="rt_jname">Campaign</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">messages</td>
+                <td class="rt_jlabel">Messages</td>
+                <td class="rt_jname">Message</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">messagesfrom</td>
+                <td class="rt_jlabel">Messages From</td>
+                <td class="rt_jname">Message</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">messagesto</td>
+                <td class="rt_jlabel">Messages To</td>
+                <td class="rt_jname">Message</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">parentcustomer</td>
+                <td class="rt_jlabel">Parent Customer</td>
+                <td class="rt_jname">Customer</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">partner</td>
+                <td class="rt_jlabel">Partner</td>
+                <td class="rt_jname">Partner</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">salesrep</td>
+                <td class="rt_jlabel">Sales Rep</td>
+                <td class="rt_jname">Employee</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">subcustomer</td>
+                <td class="rt_jlabel">Sub Customer</td>
+                <td class="rt_jname">Customer</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">task</td>
+                <td class="rt_jlabel">Task</td>
+                <td class="rt_jname">Task</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">toplevelparent</td>
+                <td class="rt_jlabel">Top Level Parent</td>
+                <td class="rt_jname">Customer</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">websitecategory</td>
+                <td class="rt_jlabel">Web Site Category</td>
+                <td class="rt_jname">Presentation Category</td>
+            </tr>
+    </table>
+
+    <H2>Search Filters</H2>
+    <table class="jtable">
+        <tr><th class="rt_iname">Internal ID</th><th class="rt_itype">Type</th><th class="rt_ilabel">Label</th></tr>
+            <tr>
+                <td class="rt_iname">accountnumber</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Account</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">address</td>
+                <td class="rt_itype">textarea</td>
+                <td class="rt_ilabel">Address</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">addressee</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Addressee</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">addresslabel</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Address Label</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">addressphone</td>
+                <td class="rt_itype">phone</td>
+                <td class="rt_ilabel">Address Phone</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">attention</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Attention</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">availableoffline</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Always Available Offline</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">balance</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">billaddress</td>
+                <td class="rt_itype">textarea</td>
+                <td class="rt_ilabel">Billing Address</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">boughtamount</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Total Amount Purchased</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">boughtdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Purchase Dates</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">buyingreason</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Buying Reason</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">buyingtimeframe</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Buying Time Frame</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">category</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Category</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">cccustomercode</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">CC Customer Code</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">ccdefault</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Default Credit Card</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">ccexpdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">CC Expire Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">ccholdername</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Credit Cardholder Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">ccnumber</td>
+                <td class="rt_itype">ccnumber</td>
+                <td class="rt_ilabel">Credit Card Number</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">cctype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Credit Card Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">city</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">City</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">classbought</td>
+                <td class="rt_itype">multiselect</td>
+                <td class="rt_ilabel">Class</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">comments</td>
+                <td class="rt_itype">textarea</td>
+                <td class="rt_ilabel">Comments</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">companyname</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Company Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">consolbalance</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Consolidated Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">consoldaysoverdue</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Consolidated Days Overdue</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">consoldepositbalance</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Consolidated Deposit Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">consoloverduebalance</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Consolidated Overdue Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">consolunbilledorders</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Consolidated Unbilled Orders</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">contact</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Contact</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">contribution</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Contribution %</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">conversiondate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Conversion Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">country</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Country</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">county</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">County/State</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">credithold</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Credit Hold</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">creditholdoverride</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Override Credit Hold Off</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">creditlimit</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Credit Limit</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">currency</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Currency</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">custstage</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Parent Stage</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">custstatus</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Parent Status</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">dateclosed</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Date Closed</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">datecreated</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Date Created</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">daysoverdue</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Days Overdue</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">depositbalance</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Deposit Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">deptbought</td>
+                <td class="rt_itype">multiselect</td>
+                <td class="rt_ilabel">Department</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">draccount</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Deferred Revenue Reclassification Account</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">email</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Email</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">emailpreference</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Email Preference</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">emailtransactions</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Email Transactions</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">enddate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">End Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">entityid</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Name/ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">entitystatus</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Status</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">estimatedbudget</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Estimated Budget</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">explicitconversion</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Explicit Conversion</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">externalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">External ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">externalidstring</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">External ID (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">fax</td>
+                <td class="rt_itype">phone</td>
+                <td class="rt_ilabel">Fax</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">faxtransactions</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Fax Transactions</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">firstname</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">First Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">firstorderdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Date of First Order</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">firstsaledate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Date of First Sale</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formuladate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulanumeric</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulatext</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">fxaccount</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Foreign Currency Adjustment Revenue Account</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">fxbalance</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Balance (Foreign Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">fxconsolbalance</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Consolidated Balance (Foreign Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">fxconsolunbilledorders</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Consolidated Unbilled Orders (Foreign Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">fxunbilledorders</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Unbilled Orders (Foreign Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">giveaccess</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Login Access</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">globalsubscriptionstatus</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Global Subscription Status</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">group</td>
+                <td class="rt_itype">multiselect</td>
+                <td class="rt_ilabel">Group</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">grouppricinglevel</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Group Pricing Level</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">hasduplicates</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Duplicate</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">image</td>
+                <td class="rt_itype">image</td>
+                <td class="rt_ilabel">Image</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalidnumber</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Internal ID (Number)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isbudgetapproved</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Budget Approved</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isdefaultbilling</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Default Billing Address</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isdefaultshipping</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Default Shipping Address</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isinactive</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Inactive</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isjob</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Is Job</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isperson</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Is Individual</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isreportedlead</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Included in Lead Reports</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isshipaddress</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Residential Address</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">itempricinglevel</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Item Pricing Level</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">itempricingunitprice</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Item Pricing Unit Price</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">itemsbought</td>
+                <td class="rt_itype">multiselect</td>
+                <td class="rt_ilabel">Items Purchased</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">itemsordered</td>
+                <td class="rt_itype">multiselect</td>
+                <td class="rt_ilabel">Items Ordered</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">jobenddate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Actual End Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">jobestcost</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Estimated Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">jobestenddate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Projected End Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">jobestrevenue</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Estimated Revenue</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">jobpctcomplete</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Percent Complete</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">jobstartdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Start Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">jobstatus</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Job Status</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">jobtype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Job Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">language</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Language</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lastmodifieddate</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Last Modified</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lastname</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Last Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lastorderdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Date of Last Order</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lastsaledate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Date of Last Sale</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">leaddate</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Lead Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">leadsource</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Lead Source</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">level</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Level</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationbought</td>
+                <td class="rt_itype">multiselect</td>
+                <td class="rt_ilabel">Location</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">manualcredithold</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Override Credit Hold On</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">merchantaccount</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Credit Card Processor</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">middlename</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Middle Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">monthlyclosing</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Monthly Closing Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">oncredithold</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">On Credit Hold</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">onlineformdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Online Form History - Form Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">onlineformleadsource</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Online Form History - Lead Source</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">onlineformname</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Online Form History - Form Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">orderedamount</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Total Amount Ordered</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">ordereddate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Order Dates</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">otherrelationships</td>
+                <td class="rt_itype">multiselect</td>
+                <td class="rt_ilabel">Other Relationships</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">overduebalance</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Overdue Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">parent</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Sub of</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">parentitemsbought</td>
+                <td class="rt_itype">multiselect</td>
+                <td class="rt_ilabel">Items or Sub-Items Purchased</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">parentitemsordered</td>
+                <td class="rt_itype">multiselect</td>
+                <td class="rt_ilabel">Items or Sub-Items Ordered</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">partner</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Partner</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">partnercontribution</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Partner Contribution %</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">partnerrole</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Partner Role</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">partnerteammember</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Partner Team Member</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">pec</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">PEC</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">permission</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Permission</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">phone</td>
+                <td class="rt_itype">phone</td>
+                <td class="rt_ilabel">Phone</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">phoneticname</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Phonetic Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">pricelevel</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Price Level</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">pricinggroup</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Pricing Group</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">pricingitem</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Pricing Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">printtransactions</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Print Transactions</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">prospectdate</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Prospect Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">pstexempt</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">PST Exempt</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">receivablesaccount</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Default Receivables Account</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">reminderdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Renewal Reminder Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">representingsubsidiary</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Represents Subsidiary</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">resalenumber</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Resale Number</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">role</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Role</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">salesreadiness</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Sales Readiness</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">salesrep</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Sales Rep</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">salesteammember</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Sales Team Member</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">salesteamrole</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Sales Team Role</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">salutation</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Mr./Mrs...</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">shipaddress</td>
+                <td class="rt_itype">textarea</td>
+                <td class="rt_ilabel">Shipping Address</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">shipcomplete</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Ship Complete</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">shippingcarrier</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Shipping Carrier</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">shippingitem</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Shipping Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">stage</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Stage</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">startdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Start Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">state</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">State/Province</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">subsidbought</td>
+                <td class="rt_itype">multiselect</td>
+                <td class="rt_ilabel">Subsidiaries Bought</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">subsidiary</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Subsidiary</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">taxable</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Taxable</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">terms</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Terms</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">territory</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Territory</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">title</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Job Title</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">type</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Entity Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">unbilledorders</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Unbilled Orders</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">url</td>
+                <td class="rt_itype">url</td>
+                <td class="rt_ilabel">Web Address</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">vatregnumber</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Tax Number</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">weblead</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Web Lead</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">zipcode</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Zip</td>
+            </tr>
+    </table>
+
+    <H2>Search Columns</H2>
+    <table class="jtable">
+        <tr><th class="rt_cname">Internal ID</th><th class="rt_ctype">Type</th><th class="rt_clabel">Label</th></tr>
+            <tr>
+                <td class="rt_cname">accountnumber</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">address</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Address</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">address1</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Address 1</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">address2</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Address 2</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">address3</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Address 3</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">addressee</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Addressee</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">addressinternalid</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Address Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">addresslabel</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Address Label</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">addressphone</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Address Phone</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">altcontact</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Alt. Contact</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">altemail</td>
+                <td class="rt_ctype">email</td>
+                <td class="rt_clabel">Alt. Email</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">altname</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">altphone</td>
+                <td class="rt_ctype">phone</td>
+                <td class="rt_clabel">Office Phone</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">attention</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Attention</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">availableoffline</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Always Available Offline</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">balance</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billaddress</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Billing Address</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billaddress1</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Billing Address 1</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billaddress2</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Billing Address 2</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billaddress3</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Billing Address 3</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billaddressee</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Billing Addressee</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billattention</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Billing Attention</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billcity</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Billing City</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billcountry</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Billing Country</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billcountrycode</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Billing Country Code</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billphone</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Billing Phone</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billstate</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Billing State/Province</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billzipcode</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Billing Zip</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">buyingreason</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Buying Reason</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">buyingtimeframe</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Buying Time Frame</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">category</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Category</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">cccustomercode</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">CC Customer Code</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">ccdefault</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Default Credit Card</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">ccexpdate</td>
+                <td class="rt_ctype">mmyydate</td>
+                <td class="rt_clabel">CC Expire Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">ccholdername</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Credit Cardholder Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">ccinternalid</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Credit Card Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">ccnumber</td>
+                <td class="rt_ctype">ccnumber</td>
+                <td class="rt_clabel">Credit Card Number</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">cctype</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Credit Card Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">city</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">City</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">comments</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Comments</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">companyname</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Company Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">consolbalance</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Consolidated Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">consoldaysoverdue</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Consolidated Days Overdue</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">consoldepositbalance</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Consolidated Deposit Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">consoloverduebalance</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Consolidated Overdue Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">consolunbilledorders</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Consolidated Unbilled Orders</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">contact</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Primary Contact</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">contribution</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">Contribution %</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">contributionprimary</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">Primary Sales Rep Contribution %</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">conversiondate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Conversion Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">country</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Country</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">countrycode</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Country Code</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">credithold</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Credit Hold</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">creditholdoverride</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Override Credit Hold Off</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">creditlimit</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Credit Limit</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">currency</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Currency</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">dateclosed</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Date Closed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">datecreated</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Date Created</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">daysoverdue</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Days Overdue</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">depositbalance</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Deposit Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">draccount</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Deferred Revenue Reclassification Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">email</td>
+                <td class="rt_ctype">email</td>
+                <td class="rt_clabel">Email</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">emailpreference</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Email Preference</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">emailtransactions</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Email Transactions</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">enddate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">End Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">entityid</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">entitynumber</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Number</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">entitystatus</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Status</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">estimatedbudget</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Estimated Budget</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">explicitconversion</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Explicit Conversion</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">externalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">External ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">fax</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Fax</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">faxtransactions</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Fax Transactions</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">firstname</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">First Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">firstorderdate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Date of First Order</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">firstsaledate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Date of First Sale</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulacurrency</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Formula (Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladatetime</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Formula (Date/Time)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulanumeric</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulapercent</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">Formula (Percent)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulatext</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">fxaccount</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Foreign Currency Adjustment Revenue Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">fxbalance</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Balance (Foreign Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">fxconsolbalance</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Consolidated Balance (Foreign Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">fxconsolunbilledorders</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Consolidated Unbilled Orders (Foreign Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">fxunbilledorders</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Unbilled Orders (Foreign Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">giveaccess</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Login Access</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">globalsubscriptionstatus</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Global Subscription Status</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">grouppricinglevel</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Group Pricing Level</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">hasduplicates</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Duplicate</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">homephone</td>
+                <td class="rt_ctype">phone</td>
+                <td class="rt_clabel">Home Phone</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">image</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Image</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">internalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isbudgetapproved</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Budget Approved</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isdefaultbilling</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Default Billing Address</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isdefaultshipping</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Default Shipping Address</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isinactive</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Inactive</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isperson</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Is Individual</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isshipaddress</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Residential Address</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">itempricinglevel</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Item Pricing Level</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">itempricingunitprice</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Item Pricing Unit Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">jobenddate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Job Actual End</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">jobprojectedend</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Job Projected End</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">jobstartdate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Job Start</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">jobtype</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Job Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">language</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Language</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastmodifieddate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Last Modified</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastname</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Last Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastorderdate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Date of Last Order</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastsaledate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Date of Last Sale</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastviewed</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Last Viewed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">leaddate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Lead Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">leadsource</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Lead Source</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">level</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Level</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">manualcredithold</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Override Credit Hold On</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">middlename</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Middle Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">mobilephone</td>
+                <td class="rt_ctype">phone</td>
+                <td class="rt_clabel">Mobile Phone</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">monthlyclosing</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Monthly Closing Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">oncredithold</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">On Credit Hold</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">onlineformdate</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Online Form History - Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">onlineformleadsource</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Online Form History - Lead Source</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">onlineformname</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Online Form History - Form Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">overduebalance</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Overdue Balance</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">parent</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Top Level Parent</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">partner</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Partner</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">partnercontribution</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">Partner Contribution %</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">partnerrole</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Partner Role</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">partnerteammember</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Partner Team Member</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">pec</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">PEC</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">permission</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Permission</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">phone</td>
+                <td class="rt_ctype">phone</td>
+                <td class="rt_clabel">Phone</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">phoneticname</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Phonetic Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">prefccprocessor</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Credit Card Processor</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">pricelevel</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Price Level</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">pricinggroup</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Pricing Group</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">pricingitem</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Pricing Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">printtransactions</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Print Transactions</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">prospectdate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Prospect Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">receivablesaccount</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Default Receivables Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">reminderdays</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Reminder Days</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">representingsubsidiary</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Represents Subsidiary</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">resalenumber</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Resale Number</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">role</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Role</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">salesreadiness</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Sales Readiness</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">salesrep</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Sales Rep</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">salesteammember</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Sales Team Member</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">salesteamrole</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Sales Team Role</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">salutation</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Mr./Mrs...</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipaddress</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Shipping Address</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipaddress1</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Shipping Address 1</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipaddress2</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Shipping Address 2</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipaddress3</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Shipping Address 3</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipaddressee</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Shipping Addressee</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipattention</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Shipping Attention</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipcity</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Shipping City</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipcomplete</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Ship Complete</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipcountry</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Shipping Country</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipcountrycode</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Shipping Country Code</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipphone</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Shipping Phone</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shippingcarrier</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Shipping Carrier</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shippingitem</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Shipping Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipstate</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Shipping State/Province</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipzip</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Shipping Zip</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">stage</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Stage</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">startdate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Start Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">state</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">State/Province</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">statedisplayname</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">State/Province Display Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">subscription</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Subscription</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">subscriptiondate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Subscription Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">subscriptionstatus</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Subscription Status</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">subsidiary</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Subsidiary</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">subsidiarynohierarchy</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Subsidiary (no hierarchy)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">taxable</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Taxable</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">taxitem</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Tax Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">terms</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Terms</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">territory</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Territory</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">title</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Job Title</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">type</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">unbilledorders</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Unbilled Orders</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">url</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Web Address</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vatregnumber</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Tax Number</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">weblead</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Web Lead</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">zipcode</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Zip Code</td>
+            </tr>
+    </table>
+
+    <H2>Transform Types</H2>
+    <table class="jtable">
+        <tr><th class="rt_tname">Target Record Type</th><th class="rt_tdef">Field Defaults</th></tr>
+            <tr>
+                <td class="rt_tname">estimate</td><td class="rt_tdef">customform</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">opportunity</td><td class="rt_tdef">customform</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">salesorder</td><td class="rt_tdef">customform</td>
+            </tr>
+    </table>
+    <p>&nbsp;</p>
+</div>
+    <script>
+         $(function() {
+             wrapBodyDiv('script','contentPanel');
+         });
+    </script>
+
+</body>
+</html>

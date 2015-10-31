@@ -1,0 +1,1297 @@
+<html>
+<head>
+<link href="../../jquery-ui.css" rel="stylesheet">
+<link href="../../schema-browser.css" rel="stylesheet">
+<script src="../../javascript/jquery-1.10.2.min.js"></script>
+<script src="../../javascript/jquery-ui.min.js"></script>
+<script src="../../menudefs.js"></script>
+<script src="../../javascript/menubuilder.js"></script>
+
+<script>
+    (function( $ ){
+        //plugin buttonset vertical
+        $.fn.buttonsetv = function() {
+            $(':radio, :checkbox, :button', this).wrap('<div style="margin: 1px"/>');
+            $(this).buttonset();
+            $('label:first', this).removeClass('ui-corner-left').addClass('ui-corner-top');
+            $('label:last', this).removeClass('ui-corner-right').addClass('ui-corner-bottom');
+            mw = 0; // max witdh
+            $('label', this).each(function(index){
+                w = $(this).width();
+                if (w > mw) mw = w;
+            })
+            $('label', this).each(function(index){
+                $(this).width(mw);
+            })
+        };
+    })( jQuery );
+
+    function getURLParameter(name) {
+        return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+    }
+</script>
+
+<style>
+    .custom-combobox {
+        position: relative;
+        display: inline-block;
+    }
+    .custom-combobox-toggle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        margin-left: -1px;
+        padding: 0;
+        /* support: IE7 */
+        *height: 1.7em;
+        *top: 0.1em;
+    }
+    .custom-combobox-input {
+        margin: 0;
+        padding: 0.3em;
+    }
+</style>
+
+
+<script>
+    (function( $ ) {
+        $.widget( "custom.combobox_with_optgroup", {
+            _create: function() {
+                this.wrapper = $( "<span>" )
+                        .addClass( "custom-combobox" )
+                        .insertAfter( this.element );
+                this.element.hide();
+                this._createAutocomplete();
+                this._createShowAllButton();
+            },
+            _createAutocomplete: function() {
+                var selected = this.element.find( ":selected" ),
+                        value = selected.val() ? selected.text() : "";
+                this.input = $( "<input>" )
+                        .appendTo( this.wrapper )
+                        .val( value )
+                        .attr( "title", "" )
+                        .addClass( "custom-combobox-input ui-widget ui-widget-content ui-state-default ui-corner-left" )
+                        .autocomplete({
+                                          delay: 0,
+                                          minLength: 0,
+                                          source: $.proxy( this, "_source" )
+                                      })
+                        .tooltip({
+                                     tooltipClass: "ui-state-highlight"
+                                 })
+                        ;
+                this._on( this.input, {
+                    autocompleteselect: function( event, ui ) {
+                        ui.item.option.selected = true;
+                        window.location.href=ui.item.href;
+//                        this._trigger( "select", event, {
+//                            item: ui.item.option
+//                        });
+                    },
+                    autocompletechange: "_removeIfInvalid"
+                });
+
+                this.input.data("uiAutocomplete")._renderMenu = function(ul, items) {
+                    var self = this,
+                    currentCategory = "";
+                    var itemCounter=100;
+                    $.each(items, function(index, item) {
+                        itemCounter=itemCounter+1;
+                        if (item.category != currentCategory) {
+                            if (item.category) {
+                                ul.append("<li class='custom-autocomplete-category'>" + item.category + "</li>");
+                            }
+                            currentCategory = item.category;
+                        }
+                        self._renderItem= function( ul, item ) {
+                            return $( "<li>").attr("class",item.class)
+                                    .append( $( "<a>" ).attr("href",item.href).text( item.label ) )
+                                    .appendTo( ul );
+                        };
+                        self._renderItemData(ul, item);
+                    });
+                };
+            },
+
+            _createShowAllButton: function() {
+                var input = this.input,
+                        wasOpen = false;
+                $( "<a>" )
+                        .attr( "tabIndex", -1 )
+                        .attr( "title", "Show All" )
+                        .tooltip()
+                        .appendTo( this.wrapper )
+                        .button({
+                                   /* icons: {
+                                        primary: "ui-icon-triangle-1-s"
+                                    },*/
+                                    text: false
+                                })
+                        .removeClass( "ui-corner-all" )
+                        .addClass( "custom-combobox-toggle ui-corner-right" )
+                        .mousedown(function() {
+                                       wasOpen = input.autocomplete( "widget" ).is( ":visible" );
+                                   })
+                        .click(function() {
+                                   input.focus();
+
+                                   if ( wasOpen ) {
+                                       return;
+                                   }
+
+                                   input.autocomplete( "search", "" );
+                               });
+            },
+            _source: function( request, response ) {
+                var matcher = new RegExp( $.ui.autocomplete.escapeRegex(request.term), "i" );
+                response( this.element.find( "option" ).map(function() {
+                    var text = $( this ).text();
+                    if ( this.value && ( !request.term || matcher.test(text) ) )
+                        return {
+                            label: text,
+                            value: text,
+                            option: this,
+                            class: $(this).attr("class"),
+                            href: $(this).attr("href"),
+                            category: $(this).closest("optgroup").attr("label")
+                        };
+                }) );
+            },
+            _removeIfInvalid: function( event, ui ) {
+
+                if ( ui.item ) {
+                    return;
+                }
+
+                var value = this.input.val(),
+                        valueLowerCase = value.toLowerCase(),
+                        valid = false;
+                this.element.find( "option" ).each(function() {
+                    if ( $( this ).text().toLowerCase() === valueLowerCase ) {
+                        this.selected = valid = true;
+                        return false;
+                    }
+                });
+
+                if ( valid ) {
+                    return;
+                }
+
+                this.input
+                        .val( "" )
+                        .attr( "title", value + " not found" )
+                        .tooltip( "open" );
+                this.element.val( "" );
+                this._delay(function() {
+                    this.input.tooltip( "close" ).attr( "title", "" );
+                }, 2500 );
+                this.input.data( "ui-autocomplete" ).term = "";
+            },
+            _destroy: function() {
+                this.wrapper.remove();
+                this.element.show();
+            },
+            getInput: function(){
+                return this.input;
+            }
+        });
+    })( jQuery );
+</script>
+
+</head>
+
+<body>
+
+     <div id='header'></div>
+     <script>
+         $(function() {
+             $('#header').html(createHeader('script','record__campaign','../..'));
+         });
+     </script>
+
+
+    <div id='leftpanel'></div>
+    <script>
+        $(function() {
+            $('#leftpanel').html(createLeftPanel('script','record__campaign','../..'));
+        });
+    </script>
+
+
+<script type="text/javascript">
+    $().ready(function(){
+        $(".jtable th").each(function(){
+
+            $(this).addClass("ui-state-default");
+
+        });
+        $(".jtable td").each(function(){
+
+            $(this).addClass("ui-widget-content");
+
+        });
+
+    });
+</script>
+
+
+<div id="contentPanel">
+
+<H1>Campaign</H1>
+<H3>Internal ID: campaign</H3>
+
+
+
+
+
+    <H2>Fields</H2>
+    <table class="jtable">
+        <tr><th class="rt_fname">Internal ID</th><th class="rt_ftype">Type</th><th class="rt_fdle">nlapiSubmitField</th><th class="rt_flabel">Label</th><th class="rt_freq">Required</th><th class="rt_fhelp">Help</th></tr>
+            <tr id="field_audience">
+                <td class="rt_fname">audience</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Audience Description</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Select the audience for this campaign.
+Tracking the target audience is useful for media marketing without a clear list of recipients.
+You can create new campaign audience records at &lt;_TABNAME=EDIT_CAMPAIGNAUDIENCE_&gt; &gt; &lt;_TASKCATEGORY=EDIT_CAMPAIGNAUDIENCE_&gt; &gt; Campaign Audiences &gt; New.</td>
+            </tr>
+            <tr id="field_autoname">
+                <td class="rt_fname">autoname</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Auto</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_basecost">
+                <td class="rt_fname">basecost</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Base Cost</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_campaignid">
+                <td class="rt_fname">campaignid</td>
+                <td class="rt_ftype">identifieranycase</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">ID</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_category">
+                <td class="rt_fname">category</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Category</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Select the category this campaign belongs in.
+Campaign categories are used to group campaigns on reports and lists.
+You can create new campaign categories at &lt;_TABNAME=EDIT_CAMPAIGNCATEGORY_&gt; &amp;gt; &lt;_TASKCATEGORY=EDIT_CAMPAIGNCATEGORY_&gt; &amp;gt; Campaign Categories &amp;gt; New.</td>
+            </tr>
+            <tr id="field_convcostpercustomer">
+                <td class="rt_fname">convcostpercustomer</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Cost per Purchaser</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_conversions">
+                <td class="rt_fname">conversions</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Number of Purchasers</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">This is the number of leads or prospects that have become customers as a result of this campaign.</td>
+            </tr>
+            <tr id="field_cost">
+                <td class="rt_fname">cost</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Total Cost</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_costpercustomer">
+                <td class="rt_fname">costpercustomer</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Cost per Lead</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_customform">
+                <td class="rt_fname">customform</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Custom Form</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_enddate">
+                <td class="rt_fname">enddate</td>
+                <td class="rt_ftype">date</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">End Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_eventnumber">
+                <td class="rt_fname">eventnumber</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_expectedrevenue">
+                <td class="rt_fname">expectedrevenue</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Expected Revenue</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_externalid">
+                <td class="rt_fname">externalid</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">ExternalId</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_family">
+                <td class="rt_fname">family</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Family</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Select the family of keywords this campaign keyword is a part of. 
+Keyword families are larger groupings of paid keywords. You can create a keyword family at &lt;_TABNAME=EDIT_CAMPAIGNFAMILY_&gt; &gt; &lt;_TASKCATEGORY=EDIT_CAMPAIGNFAMILY_&gt; &gt; Campaign Families &gt; New.</td>
+            </tr>
+            <tr id="field_isinactive">
+                <td class="rt_fname">isinactive</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Inactive</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_item">
+                <td class="rt_fname">item</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Item</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_keyword">
+                <td class="rt_fname">keyword</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Keyword</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Enter the paid keyword you are tracking with this campaign.</td>
+            </tr>
+            <tr id="field_leadsgenerated">
+                <td class="rt_fname">leadsgenerated</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Leads Generated</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_message">
+                <td class="rt_fname">message</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Description</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Enter a description for this campaign.
+This description only appears on the campaign record.</td>
+            </tr>
+            <tr id="field_offer">
+                <td class="rt_fname">offer</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Offer</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Select an offer you want to associate with this campaign.
+You can create new campaign offers at &lt;_TABNAME=EDIT_CAMPAIGNOFFER_&gt; &gt; &lt;_TASKCATEGORY=EDIT_CAMPAIGNOFFER_&gt; &gt; Offers &gt; New.</td>
+            </tr>
+            <tr id="field_owner">
+                <td class="rt_fname">owner</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Manager</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp">Select the campaign manager for his campaign.
+The campaign manager receives a notification email message when a campaign 
+  event is delivered successfully.</td>
+            </tr>
+            <tr id="field_profit">
+                <td class="rt_fname">profit</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Profit</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">This is the profit earned by this campaign. Profit is calculated by deducting the cost of the campaign from the total revenue.</td>
+            </tr>
+            <tr id="field_promotioncode">
+                <td class="rt_fname">promotioncode</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Promotion Code</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_roi">
+                <td class="rt_fname">roi</td>
+                <td class="rt_ftype">percent</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Return on Investment</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">The return on investment of this campaign is calculated here. 
+Return on investment is calculated by deducting the cost of the campaign from 
+  the total revenue generated and dividing the difference by the campaign's cost.</td>
+            </tr>
+            <tr id="field_searchengine">
+                <td class="rt_fname">searchengine</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Search Engine</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_startdate">
+                <td class="rt_fname">startdate</td>
+                <td class="rt_ftype">date</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Start Date</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_title">
+                <td class="rt_fname">title</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Title</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp">Enter a title for this campaign.
+
+You can enter up to 99 characters in this field.</td>
+            </tr>
+            <tr id="field_totalrevenue">
+                <td class="rt_fname">totalrevenue</td>
+                <td class="rt_ftype">currency</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Total Revenue</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_uniquevisitors">
+                <td class="rt_fname">uniquevisitors</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Unique Visitors</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_url">
+                <td class="rt_fname">url</td>
+                <td class="rt_ftype">url</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">URL</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Enter the URL for the campaign landing page or online customer form associated with this campaign.
+
+If you enter a campaign ID or if you autonumber your campaigns, NetSuite automatically appends the URL to include the leadsource parameter. This is the destination URL you provide to search engine services for paid keywords.</td>
+            </tr>
+            <tr id="field_vertical">
+                <td class="rt_fname">vertical</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Vertical</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Select the market vertical you are targeting with this campaign.
+You can create new verticals at &lt;_TABNAME=EDIT_CAMPAIGNVERTICAL_&gt; &gt; &lt;_TASKCATEGORY=EDIT_CAMPAIGNVERTICAL_&gt; &gt; Campaign Verticals &gt; New.</td>
+            </tr>
+    </table>
+
+    <H2>Sublists</H2>
+            <H4><span id="field_campaigndirectmail_">campaigndirectmail - Direct Mail</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_campaigndirectmail_campaigngroup">
+                        <td class="rt_sname">campaigngroup</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Target Group</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaigndirectmail_channel">
+                        <td class="rt_sname">channel</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Channel</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaigndirectmail_cost">
+                        <td class="rt_sname">cost</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Cost</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaigndirectmail_datescheduled">
+                        <td class="rt_sname">datescheduled</td>
+                        <td class="rt_stype">date</td>
+                        <td class="rt_slabel">Date</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaigndirectmail_description">
+                        <td class="rt_sname">description</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Title</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaigndirectmail_internalid">
+                        <td class="rt_sname">internalid</td>
+                        <td class="rt_stype">integer</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaigndirectmail_promocode">
+                        <td class="rt_sname">promocode</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Promotion</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaigndirectmail_status">
+                        <td class="rt_sname">status</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Status</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaigndirectmail_subscription">
+                        <td class="rt_sname">subscription</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Subscription</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaigndirectmail_template">
+                        <td class="rt_sname">template</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Template</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_campaigndrip_">campaigndrip - Lead Nurturing</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_campaigndrip_channel">
+                        <td class="rt_sname">channel</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Channel</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaigndrip_cost">
+                        <td class="rt_sname">cost</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Cost</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaigndrip_description">
+                        <td class="rt_sname">description</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Title</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaigndrip_internalid">
+                        <td class="rt_sname">internalid</td>
+                        <td class="rt_stype">integer</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaigndrip_promocode">
+                        <td class="rt_sname">promocode</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Promotion</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaigndrip_subscription">
+                        <td class="rt_sname">subscription</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Subscription</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaigndrip_template">
+                        <td class="rt_sname">template</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Template</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+            </table>
+            <H4><span id="field_campaignemail_">campaignemail - E-mail</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_campaignemail_campaigngroup">
+                        <td class="rt_sname">campaigngroup</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Target Group</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaignemail_channel">
+                        <td class="rt_sname">channel</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Channel</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaignemail_cost">
+                        <td class="rt_sname">cost</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Cost</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaignemail_datescheduled">
+                        <td class="rt_sname">datescheduled</td>
+                        <td class="rt_stype">date</td>
+                        <td class="rt_slabel">Date</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaignemail_description">
+                        <td class="rt_sname">description</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Title</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaignemail_internalid">
+                        <td class="rt_sname">internalid</td>
+                        <td class="rt_stype">integer</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaignemail_promocode">
+                        <td class="rt_sname">promocode</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Promotion</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaignemail_status">
+                        <td class="rt_sname">status</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Status</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaignemail_subscription">
+                        <td class="rt_sname">subscription</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Subscription</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaignemail_template">
+                        <td class="rt_sname">template</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Template</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaignemail_testcell">
+                        <td class="rt_sname">testcell</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Test Cell</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaignemail_timescheduled">
+                        <td class="rt_sname">timescheduled</td>
+                        <td class="rt_stype">timeofday</td>
+                        <td class="rt_slabel">Time</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_campaignevent_">campaignevent - Other Events</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_campaignevent_campaigngroup">
+                        <td class="rt_sname">campaigngroup</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Target Group</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaignevent_channel">
+                        <td class="rt_sname">channel</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Channel</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaignevent_cost">
+                        <td class="rt_sname">cost</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Cost</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaignevent_datescheduled">
+                        <td class="rt_sname">datescheduled</td>
+                        <td class="rt_stype">date</td>
+                        <td class="rt_slabel">Date</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaignevent_description">
+                        <td class="rt_sname">description</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Title</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_campaignevent_internalid">
+                        <td class="rt_sname">internalid</td>
+                        <td class="rt_stype">integer</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaignevent_promocode">
+                        <td class="rt_sname">promocode</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Promotion</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaignevent_status">
+                        <td class="rt_sname">status</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Status</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_campaignevent_subscription">
+                        <td class="rt_sname">subscription</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Subscription</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+
+
+    <H2>Tabs</H2>
+    <table class="jtable">
+        <tr><th class="rt_tname">Name</th><th class="rt_tlabel">Label</th></tr>
+            <tr>
+                <td class="rt_tname">communication</td>
+                <td class="rt_tlabel">Communication</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">custom</td>
+                <td class="rt_tlabel">Custom</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">events</td>
+                <td class="rt_tlabel">Scheduled Events</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">history</td>
+                <td class="rt_tlabel">History</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">keyword</td>
+                <td class="rt_tlabel">Keyword</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">media</td>
+                <td class="rt_tlabel">File Cabinet</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">relatedinfo</td>
+                <td class="rt_tlabel">Related Info</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">statistics</td>
+                <td class="rt_tlabel">Statistics</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">workflow</td>
+                <td class="rt_tlabel">Workflow</td>
+            </tr>
+    </table>
+
+    <H2>Search Joins</H2>
+    <table class="jtable">
+        <tr><th class="rt_jid">Join ID</th><th class="rt_jlabel">Join Description</th><th class="rt_jname">Actual Join Name</th></tr>
+            <tr>
+                <td class="rt_jid">messages</td>
+                <td class="rt_jlabel">Messages</td>
+                <td class="rt_jname">Message</td>
+            </tr>
+    </table>
+
+    <H2>Search Filters</H2>
+    <table class="jtable">
+        <tr><th class="rt_iname">Internal ID</th><th class="rt_itype">Type</th><th class="rt_ilabel">Label</th></tr>
+            <tr>
+                <td class="rt_iname">audience</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Audience Description</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">basecost</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">campaigneventtype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Campaign Event Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">campaignid</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Campaign ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">category</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Category</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">channel</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Channel</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">cost</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Total Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">createddate</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Date Created</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">enddate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">End Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">event</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Campaign Event</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">expectedrevenue</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Expected Revenue</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">externalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">External ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">externalidstring</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">External ID (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">family</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Family</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formuladate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulanumeric</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulatext</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">group</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Group</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalidnumber</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Internal ID (Number)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isinactive</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Inactive</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">issalescampaign</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Is Sales Campaign</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">item</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">keyword</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Keyword</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lastmodifieddate</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Date Last Modified</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">manager</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Campaign Manager</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">managerrole</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Campaign Manager Role</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">number</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Number</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">offer</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Offer</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">promocode</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Promotion</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">recipient</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Recipient</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">response</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Response Detail</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">responsecategory</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Response</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">responsecode</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Response Code</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">responsecomments</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Response Comments</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">responsedate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Response Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">scheduledate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Schedule Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">searchengine</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Search Engine</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">startdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Start Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">status</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Status</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">subscription</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Subscription</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">template</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Campaign Templates</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">title</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Title</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">vertical</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Vertical</td>
+            </tr>
+    </table>
+
+    <H2>Search Columns</H2>
+    <table class="jtable">
+        <tr><th class="rt_cname">Internal ID</th><th class="rt_ctype">Type</th><th class="rt_clabel">Label</th></tr>
+            <tr>
+                <td class="rt_cname">audience</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Audience Description</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">basecost</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Base Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">campaignid</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Campaign ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">category</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Category</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">channel</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Channel</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">cost</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Total Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">createddate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Date Created</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">enddate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">End Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">event</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Event</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">executeddate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Executed on</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">expectedrevenue</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Expected Revenue</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">externalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">External ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">family</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Family</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulacurrency</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Formula (Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladatetime</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Formula (Date/Time)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulanumeric</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulapercent</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">Formula (Percent)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulatext</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">internalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isinactive</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Inactive</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">issalescampaign</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Is Sales Campaign</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">item</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">keyword</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Keyword</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastmodifieddate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Last Modified</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastviewed</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Last Viewed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">managerrole</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Manager Role</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">message</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Description</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">offer</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Offer</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">owner</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Manager</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">promocode</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Promotion</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">recipient</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Recipient</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">response</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Response Detail</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">responsecategory</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Response</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">responsecode</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Response Code</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">responsedate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Response Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">responsenotes</td>
+                <td class="rt_ctype">textarea</td>
+                <td class="rt_clabel">Response Notes</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">revenue</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Revenue</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">roi</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">ROI</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">scheduleddate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Scheduled on</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">searchengine</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Search Engine</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">startdate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Start Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">status</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Status</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">subscription</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Subscription</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">title</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Title</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">url</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">URL</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vertical</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Vertical</td>
+            </tr>
+    </table>
+
+    <p>&nbsp;</p>
+</div>
+    <script>
+         $(function() {
+             wrapBodyDiv('script','contentPanel');
+         });
+    </script>
+
+</body>
+</html>

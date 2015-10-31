@@ -1,0 +1,1071 @@
+<html>
+<head>
+<link href="../../jquery-ui.css" rel="stylesheet">
+<link href="../../schema-browser.css" rel="stylesheet">
+<script src="../../javascript/jquery-1.10.2.min.js"></script>
+<script src="../../javascript/jquery-ui.min.js"></script>
+<script src="../../menudefs.js"></script>
+<script src="../../javascript/menubuilder.js"></script>
+
+<script>
+    (function( $ ){
+        //plugin buttonset vertical
+        $.fn.buttonsetv = function() {
+            $(':radio, :checkbox, :button', this).wrap('<div style="margin: 1px"/>');
+            $(this).buttonset();
+            $('label:first', this).removeClass('ui-corner-left').addClass('ui-corner-top');
+            $('label:last', this).removeClass('ui-corner-right').addClass('ui-corner-bottom');
+            mw = 0; // max witdh
+            $('label', this).each(function(index){
+                w = $(this).width();
+                if (w > mw) mw = w;
+            })
+            $('label', this).each(function(index){
+                $(this).width(mw);
+            })
+        };
+    })( jQuery );
+
+    function getURLParameter(name) {
+        return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+    }
+</script>
+
+<style>
+    .custom-combobox {
+        position: relative;
+        display: inline-block;
+    }
+    .custom-combobox-toggle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        margin-left: -1px;
+        padding: 0;
+        /* support: IE7 */
+        *height: 1.7em;
+        *top: 0.1em;
+    }
+    .custom-combobox-input {
+        margin: 0;
+        padding: 0.3em;
+    }
+</style>
+
+
+<script>
+    (function( $ ) {
+        $.widget( "custom.combobox_with_optgroup", {
+            _create: function() {
+                this.wrapper = $( "<span>" )
+                        .addClass( "custom-combobox" )
+                        .insertAfter( this.element );
+                this.element.hide();
+                this._createAutocomplete();
+                this._createShowAllButton();
+            },
+            _createAutocomplete: function() {
+                var selected = this.element.find( ":selected" ),
+                        value = selected.val() ? selected.text() : "";
+                this.input = $( "<input>" )
+                        .appendTo( this.wrapper )
+                        .val( value )
+                        .attr( "title", "" )
+                        .addClass( "custom-combobox-input ui-widget ui-widget-content ui-state-default ui-corner-left" )
+                        .autocomplete({
+                                          delay: 0,
+                                          minLength: 0,
+                                          source: $.proxy( this, "_source" )
+                                      })
+                        .tooltip({
+                                     tooltipClass: "ui-state-highlight"
+                                 })
+                        ;
+                this._on( this.input, {
+                    autocompleteselect: function( event, ui ) {
+                        ui.item.option.selected = true;
+                        window.location.href=ui.item.href;
+//                        this._trigger( "select", event, {
+//                            item: ui.item.option
+//                        });
+                    },
+                    autocompletechange: "_removeIfInvalid"
+                });
+
+                this.input.data("uiAutocomplete")._renderMenu = function(ul, items) {
+                    var self = this,
+                    currentCategory = "";
+                    var itemCounter=100;
+                    $.each(items, function(index, item) {
+                        itemCounter=itemCounter+1;
+                        if (item.category != currentCategory) {
+                            if (item.category) {
+                                ul.append("<li class='custom-autocomplete-category'>" + item.category + "</li>");
+                            }
+                            currentCategory = item.category;
+                        }
+                        self._renderItem= function( ul, item ) {
+                            return $( "<li>").attr("class",item.class)
+                                    .append( $( "<a>" ).attr("href",item.href).text( item.label ) )
+                                    .appendTo( ul );
+                        };
+                        self._renderItemData(ul, item);
+                    });
+                };
+            },
+
+            _createShowAllButton: function() {
+                var input = this.input,
+                        wasOpen = false;
+                $( "<a>" )
+                        .attr( "tabIndex", -1 )
+                        .attr( "title", "Show All" )
+                        .tooltip()
+                        .appendTo( this.wrapper )
+                        .button({
+                                   /* icons: {
+                                        primary: "ui-icon-triangle-1-s"
+                                    },*/
+                                    text: false
+                                })
+                        .removeClass( "ui-corner-all" )
+                        .addClass( "custom-combobox-toggle ui-corner-right" )
+                        .mousedown(function() {
+                                       wasOpen = input.autocomplete( "widget" ).is( ":visible" );
+                                   })
+                        .click(function() {
+                                   input.focus();
+
+                                   if ( wasOpen ) {
+                                       return;
+                                   }
+
+                                   input.autocomplete( "search", "" );
+                               });
+            },
+            _source: function( request, response ) {
+                var matcher = new RegExp( $.ui.autocomplete.escapeRegex(request.term), "i" );
+                response( this.element.find( "option" ).map(function() {
+                    var text = $( this ).text();
+                    if ( this.value && ( !request.term || matcher.test(text) ) )
+                        return {
+                            label: text,
+                            value: text,
+                            option: this,
+                            class: $(this).attr("class"),
+                            href: $(this).attr("href"),
+                            category: $(this).closest("optgroup").attr("label")
+                        };
+                }) );
+            },
+            _removeIfInvalid: function( event, ui ) {
+
+                if ( ui.item ) {
+                    return;
+                }
+
+                var value = this.input.val(),
+                        valueLowerCase = value.toLowerCase(),
+                        valid = false;
+                this.element.find( "option" ).each(function() {
+                    if ( $( this ).text().toLowerCase() === valueLowerCase ) {
+                        this.selected = valid = true;
+                        return false;
+                    }
+                });
+
+                if ( valid ) {
+                    return;
+                }
+
+                this.input
+                        .val( "" )
+                        .attr( "title", value + " not found" )
+                        .tooltip( "open" );
+                this.element.val( "" );
+                this._delay(function() {
+                    this.input.tooltip( "close" ).attr( "title", "" );
+                }, 2500 );
+                this.input.data( "ui-autocomplete" ).term = "";
+            },
+            _destroy: function() {
+                this.wrapper.remove();
+                this.element.show();
+            },
+            getInput: function(){
+                return this.input;
+            }
+        });
+    })( jQuery );
+</script>
+
+</head>
+
+<body>
+
+     <div id='header'></div>
+     <script>
+         $(function() {
+             $('#header').html(createHeader('script','record__subsidiary','../..'));
+         });
+     </script>
+
+
+    <div id='leftpanel'></div>
+    <script>
+        $(function() {
+            $('#leftpanel').html(createLeftPanel('script','record__subsidiary','../..'));
+        });
+    </script>
+
+
+<script type="text/javascript">
+    $().ready(function(){
+        $(".jtable th").each(function(){
+
+            $(this).addClass("ui-state-default");
+
+        });
+        $(".jtable td").each(function(){
+
+            $(this).addClass("ui-widget-content");
+
+        });
+
+    });
+</script>
+
+
+<div id="contentPanel">
+
+<H1>Subsidiary</H1>
+<H3>Internal ID: subsidiary</H3>
+
+
+
+
+
+    <H2>Fields</H2>
+    <table class="jtable">
+        <tr><th class="rt_fname">Internal ID</th><th class="rt_ftype">Type</th><th class="rt_fdle">nlapiSubmitField</th><th class="rt_flabel">Label</th><th class="rt_freq">Required</th><th class="rt_fhelp">Help</th></tr>
+            <tr id="field_addr1">
+                <td class="rt_fname">addr1</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Address 1</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Enter the street address of this subsidiary.</td>
+            </tr>
+            <tr id="field_addr2">
+                <td class="rt_fname">addr2</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Address 2</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Enter the street address  of this subsidiary.</td>
+            </tr>
+            <tr id="field_addr3">
+                <td class="rt_fname">addr3</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_addressee">
+                <td class="rt_fname">addressee</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Addressee</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Enter the name of this subsidiary as it should appear on shipping labels and 
+  return addresses.</td>
+            </tr>
+            <tr id="field_addrphone">
+                <td class="rt_fname">addrphone</td>
+                <td class="rt_ftype">phone</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Phone</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_addrtext">
+                <td class="rt_fname">addrtext</td>
+                <td class="rt_ftype">address</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Address</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_attention">
+                <td class="rt_fname">attention</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Attention</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Enter the name of person that should be notified of shipment or return arrivals.</td>
+            </tr>
+            <tr id="field_caseupdatetemplate">
+                <td class="rt_fname">caseupdatetemplate</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Case Update</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_checklayout">
+                <td class="rt_fname">checklayout</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Check Default Chart Type</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_city">
+                <td class="rt_fname">city</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">City</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Enter the city this subsidiary is located in.</td>
+            </tr>
+            <tr id="field_country">
+                <td class="rt_fname">country</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Country</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp">Enter the country this subsidiary is located in.</td>
+            </tr>
+            <tr id="field_currency">
+                <td class="rt_fname">currency</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Currency</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp">Set the base currency used by this subsidiary. If you do not set a currency, the currency of the parent is used.</td>
+            </tr>
+            <tr id="field_edition">
+                <td class="rt_fname">edition</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Edition</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">This field shows the edition of NetSuite used by this subsidiary.</td>
+            </tr>
+            <tr id="field_email">
+                <td class="rt_fname">email</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Return Email Address</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Enter the return email address for this subsidiary.</td>
+            </tr>
+            <tr id="field_externalid">
+                <td class="rt_fname">externalid</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">ExternalId</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_fax">
+                <td class="rt_fname">fax</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Fax</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Enter the fax number for this subsidiary.</td>
+            </tr>
+            <tr id="field_federalidnumber">
+                <td class="rt_fname">federalidnumber</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Employer Identification Number (EIN)</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_fiscalcalendar">
+                <td class="rt_fname">fiscalcalendar</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Fiscal Calendar</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_heading0">
+                <td class="rt_fname">heading0</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Case Email Setup</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_heading1">
+                <td class="rt_fname">heading1</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Customer Notification Templates</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_heading2">
+                <td class="rt_fname">heading2</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Employee Notification Templates</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_intercoaccount">
+                <td class="rt_fname">intercoaccount</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Intercompany Account</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_iselimination">
+                <td class="rt_fname">iselimination</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Elimination</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_isinactive">
+                <td class="rt_fname">isinactive</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Subsidiary is Inactive</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_languagelocale">
+                <td class="rt_fname">languagelocale</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Language</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_legalname">
+                <td class="rt_fname">legalname</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Legal Name</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_logo">
+                <td class="rt_fname">logo</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Subsidiary Logo (Forms)</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Set the logo that should appear on printed and emailed transaction forms for this subsidiary. If you do not set a logo here, the logo for the parent subsidiary or company is used. To upload a logo into NetSuite, click Add New next to the Logo field in the UI. Be sure to check the Available Without Login box.</td>
+            </tr>
+            <tr id="field_name">
+                <td class="rt_fname">name</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Name</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_override">
+                <td class="rt_fname">override</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Override</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Check this box to edit the address in the Address field.</td>
+            </tr>
+            <tr id="field_pagelogo">
+                <td class="rt_fname">pagelogo</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Subsidiary Logo (Pages)</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_parent">
+                <td class="rt_fname">parent</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Subsubsidiary of</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp">Set this field to the direct parent of the subsidiary.
+In order to retrieve a list of available values for this field, use the GetSelectValue operation.
+Setting a parent subsidiary sets your company hierarchy which is shown in the subsidiaries list.</td>
+            </tr>
+            <tr id="field_returnaddr">
+                <td class="rt_fname">returnaddr</td>
+                <td class="rt_ftype">address</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Address</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_returnaddress1">
+                <td class="rt_fname">returnaddress1</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Address1</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_returnaddress2">
+                <td class="rt_fname">returnaddress2</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Address2</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_returncity">
+                <td class="rt_fname">returncity</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">City</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_returncountry">
+                <td class="rt_fname">returncountry</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Country</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_returnstate">
+                <td class="rt_fname">returnstate</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">County/State/Province</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_returnzip">
+                <td class="rt_fname">returnzip</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Postal Code</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_roundtime">
+                <td class="rt_fname">roundtime</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Round Time Entry Duration</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_shipaddr">
+                <td class="rt_fname">shipaddr</td>
+                <td class="rt_ftype">address</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Address</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_shipaddress1">
+                <td class="rt_fname">shipaddress1</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Address1</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_shipaddress2">
+                <td class="rt_fname">shipaddress2</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Address2</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_shipcity">
+                <td class="rt_fname">shipcity</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">City</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_shipcountry">
+                <td class="rt_fname">shipcountry</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Country</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_shipstate">
+                <td class="rt_fname">shipstate</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">County/State/Province</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_shipzip">
+                <td class="rt_fname">shipzip</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Postal Code</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showsubsidiaryname">
+                <td class="rt_fname">showsubsidiaryname</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Always Display Subsidiary Name</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_ssnortin">
+                <td class="rt_fname">ssnortin</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">SSN or TIN (Social Security Number, Tax ID Number)</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_state">
+                <td class="rt_fname">state</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">State/Province</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Choose the state or province this subsidiary is located in.</td>
+            </tr>
+            <tr id="field_taxfiscalcalendar">
+                <td class="rt_fname">taxfiscalcalendar</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Tax Fiscal Calendar</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_tranprefix">
+                <td class="rt_fname">tranprefix</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Transaction Prefix</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_url">
+                <td class="rt_fname">url</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Web Site</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Set this subsidiary&amp;#xfffd;s Web site address or URL.</td>
+            </tr>
+            <tr id="field_zip">
+                <td class="rt_fname">zip</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Zip</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Enter the postal code for this subsidiary.</td>
+            </tr>
+    </table>
+
+    <H2>Sublists</H2>
+            <H4><span id="field_accountingbookdetail_">accountingbookdetail - Currencies</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_accountingbookdetail_currency">
+                        <td class="rt_sname">currency</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Base Currency</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+            </table>
+
+
+    <H2>Tabs</H2>
+    <table class="jtable">
+        <tr><th class="rt_tname">Name</th><th class="rt_tlabel">Label</th></tr>
+            <tr>
+                <td class="rt_tname">addressbook</td>
+                <td class="rt_tlabel">Address</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">history</td>
+                <td class="rt_tlabel">System Notes</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">nexustab</td>
+                <td class="rt_tlabel">Nexuses</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">preferencestab</td>
+                <td class="rt_tlabel">Preferences</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">returnsaddrtab</td>
+                <td class="rt_tlabel">Return Address</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">shippingaddrtab</td>
+                <td class="rt_tlabel">Shipping Address</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">translation</td>
+                <td class="rt_tlabel">Translation</td>
+            </tr>
+    </table>
+
+
+    <H2>Search Filters</H2>
+    <table class="jtable">
+        <tr><th class="rt_iname">Internal ID</th><th class="rt_itype">Type</th><th class="rt_ilabel">Label</th></tr>
+            <tr>
+                <td class="rt_iname">accountingbook</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Accounting Book</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">accountingbookcurrency</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Accounting Book Currency</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">address</td>
+                <td class="rt_itype">textarea</td>
+                <td class="rt_ilabel">Address</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">city</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">City</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">country</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Country</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">currency</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Currency</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">email</td>
+                <td class="rt_itype">email</td>
+                <td class="rt_ilabel">Email</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">externalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">External ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">externalidstring</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">External ID (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">fax</td>
+                <td class="rt_itype">phone</td>
+                <td class="rt_ilabel">Fax</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formuladate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulanumeric</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulatext</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalidnumber</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Internal ID (Number)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">iselimination</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Elimination</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isinactive</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Inactive</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">legalname</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Legal Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">name</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">phone</td>
+                <td class="rt_itype">phone</td>
+                <td class="rt_ilabel">Phone</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">state</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">State/Province</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">taxidnum</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Tax ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">tranprefix</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Transaction Prefix</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">url</td>
+                <td class="rt_itype">url</td>
+                <td class="rt_ilabel">Web Site</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">zip</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Zip</td>
+            </tr>
+    </table>
+
+    <H2>Search Columns</H2>
+    <table class="jtable">
+        <tr><th class="rt_cname">Internal ID</th><th class="rt_ctype">Type</th><th class="rt_clabel">Label</th></tr>
+            <tr>
+                <td class="rt_cname">accountingbook</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Accounting Book</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">accountingbookcurrency</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Accounting Book Currency</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">address1</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Address 1</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">address2</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Address 2</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">address3</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Address 3</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">anonymouscustomerinboundemail</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Anonymous Customer - Inbound Email</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">anonymouscustomeronlineforms</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Anonymous Customer - Online Forms</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">caseassignmenttemplate</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Employee Notification Template - Case Assignment</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">caseautomaticclosuretemplate</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Customer Notification Template - Automatic Case Closure</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">casecopyemployeetemplate</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Employee Notification Template - Copy Employee</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">casecreationtemplate</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Customer Notification Template - Case Creation</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">caseescalationtemplate</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Employee Notification Template - Escalation</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">caseupdatetemplate</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Customer Notification Template - Case Update</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">city</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">City</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">companynameforsupportmessages</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Company Name for Support Messages</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">country</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Country</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">currency</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Currency</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">email</td>
+                <td class="rt_ctype">email</td>
+                <td class="rt_clabel">Email</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">employeecaseupdatetemplate</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Employee Notification Template - Case Update</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">externalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">External ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">fax</td>
+                <td class="rt_ctype">phone</td>
+                <td class="rt_clabel">Fax</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulacurrency</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Formula (Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladatetime</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Formula (Date/Time)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulanumeric</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulapercent</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">Formula (Percent)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulatext</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">internalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">iselimination</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Elimination</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isinactive</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Inactive</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">legalname</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Legal Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">mainsupportemailaddress</td>
+                <td class="rt_ctype">email</td>
+                <td class="rt_clabel">Main Support Email Address</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">name</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">namenohierarchy</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Name (no hierarchy)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">phone</td>
+                <td class="rt_ctype">phone</td>
+                <td class="rt_clabel">Phone</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">state</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">State/Province</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">taxidnum</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Tax ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">tranprefix</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Transaction Prefix</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">url</td>
+                <td class="rt_ctype">url</td>
+                <td class="rt_clabel">Web Site</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">zip</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Zip</td>
+            </tr>
+    </table>
+
+    <p>&nbsp;</p>
+</div>
+    <script>
+         $(function() {
+             wrapBodyDiv('script','contentPanel');
+         });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,797 @@
+<html>
+<head>
+<link href="../../jquery-ui.css" rel="stylesheet">
+<link href="../../schema-browser.css" rel="stylesheet">
+<script src="../../javascript/jquery-1.10.2.min.js"></script>
+<script src="../../javascript/jquery-ui.min.js"></script>
+<script src="../../menudefs.js"></script>
+<script src="../../javascript/menubuilder.js"></script>
+
+<script>
+    (function( $ ){
+        //plugin buttonset vertical
+        $.fn.buttonsetv = function() {
+            $(':radio, :checkbox, :button', this).wrap('<div style="margin: 1px"/>');
+            $(this).buttonset();
+            $('label:first', this).removeClass('ui-corner-left').addClass('ui-corner-top');
+            $('label:last', this).removeClass('ui-corner-right').addClass('ui-corner-bottom');
+            mw = 0; // max witdh
+            $('label', this).each(function(index){
+                w = $(this).width();
+                if (w > mw) mw = w;
+            })
+            $('label', this).each(function(index){
+                $(this).width(mw);
+            })
+        };
+    })( jQuery );
+
+    function getURLParameter(name) {
+        return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+    }
+</script>
+
+<style>
+    .custom-combobox {
+        position: relative;
+        display: inline-block;
+    }
+    .custom-combobox-toggle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        margin-left: -1px;
+        padding: 0;
+        /* support: IE7 */
+        *height: 1.7em;
+        *top: 0.1em;
+    }
+    .custom-combobox-input {
+        margin: 0;
+        padding: 0.3em;
+    }
+</style>
+
+
+<script>
+    (function( $ ) {
+        $.widget( "custom.combobox_with_optgroup", {
+            _create: function() {
+                this.wrapper = $( "<span>" )
+                        .addClass( "custom-combobox" )
+                        .insertAfter( this.element );
+                this.element.hide();
+                this._createAutocomplete();
+                this._createShowAllButton();
+            },
+            _createAutocomplete: function() {
+                var selected = this.element.find( ":selected" ),
+                        value = selected.val() ? selected.text() : "";
+                this.input = $( "<input>" )
+                        .appendTo( this.wrapper )
+                        .val( value )
+                        .attr( "title", "" )
+                        .addClass( "custom-combobox-input ui-widget ui-widget-content ui-state-default ui-corner-left" )
+                        .autocomplete({
+                                          delay: 0,
+                                          minLength: 0,
+                                          source: $.proxy( this, "_source" )
+                                      })
+                        .tooltip({
+                                     tooltipClass: "ui-state-highlight"
+                                 })
+                        ;
+                this._on( this.input, {
+                    autocompleteselect: function( event, ui ) {
+                        ui.item.option.selected = true;
+                        window.location.href=ui.item.href;
+//                        this._trigger( "select", event, {
+//                            item: ui.item.option
+//                        });
+                    },
+                    autocompletechange: "_removeIfInvalid"
+                });
+
+                this.input.data("uiAutocomplete")._renderMenu = function(ul, items) {
+                    var self = this,
+                    currentCategory = "";
+                    var itemCounter=100;
+                    $.each(items, function(index, item) {
+                        itemCounter=itemCounter+1;
+                        if (item.category != currentCategory) {
+                            if (item.category) {
+                                ul.append("<li class='custom-autocomplete-category'>" + item.category + "</li>");
+                            }
+                            currentCategory = item.category;
+                        }
+                        self._renderItem= function( ul, item ) {
+                            return $( "<li>").attr("class",item.class)
+                                    .append( $( "<a>" ).attr("href",item.href).text( item.label ) )
+                                    .appendTo( ul );
+                        };
+                        self._renderItemData(ul, item);
+                    });
+                };
+            },
+
+            _createShowAllButton: function() {
+                var input = this.input,
+                        wasOpen = false;
+                $( "<a>" )
+                        .attr( "tabIndex", -1 )
+                        .attr( "title", "Show All" )
+                        .tooltip()
+                        .appendTo( this.wrapper )
+                        .button({
+                                   /* icons: {
+                                        primary: "ui-icon-triangle-1-s"
+                                    },*/
+                                    text: false
+                                })
+                        .removeClass( "ui-corner-all" )
+                        .addClass( "custom-combobox-toggle ui-corner-right" )
+                        .mousedown(function() {
+                                       wasOpen = input.autocomplete( "widget" ).is( ":visible" );
+                                   })
+                        .click(function() {
+                                   input.focus();
+
+                                   if ( wasOpen ) {
+                                       return;
+                                   }
+
+                                   input.autocomplete( "search", "" );
+                               });
+            },
+            _source: function( request, response ) {
+                var matcher = new RegExp( $.ui.autocomplete.escapeRegex(request.term), "i" );
+                response( this.element.find( "option" ).map(function() {
+                    var text = $( this ).text();
+                    if ( this.value && ( !request.term || matcher.test(text) ) )
+                        return {
+                            label: text,
+                            value: text,
+                            option: this,
+                            class: $(this).attr("class"),
+                            href: $(this).attr("href"),
+                            category: $(this).closest("optgroup").attr("label")
+                        };
+                }) );
+            },
+            _removeIfInvalid: function( event, ui ) {
+
+                if ( ui.item ) {
+                    return;
+                }
+
+                var value = this.input.val(),
+                        valueLowerCase = value.toLowerCase(),
+                        valid = false;
+                this.element.find( "option" ).each(function() {
+                    if ( $( this ).text().toLowerCase() === valueLowerCase ) {
+                        this.selected = valid = true;
+                        return false;
+                    }
+                });
+
+                if ( valid ) {
+                    return;
+                }
+
+                this.input
+                        .val( "" )
+                        .attr( "title", value + " not found" )
+                        .tooltip( "open" );
+                this.element.val( "" );
+                this._delay(function() {
+                    this.input.tooltip( "close" ).attr( "title", "" );
+                }, 2500 );
+                this.input.data( "ui-autocomplete" ).term = "";
+            },
+            _destroy: function() {
+                this.wrapper.remove();
+                this.element.show();
+            },
+            getInput: function(){
+                return this.input;
+            }
+        });
+    })( jQuery );
+</script>
+
+</head>
+
+<body>
+
+     <div id='header'></div>
+     <script>
+         $(function() {
+             $('#header').html(createHeader('script','record__portlet','../..'));
+         });
+     </script>
+
+
+    <div id='leftpanel'></div>
+    <script>
+        $(function() {
+            $('#leftpanel').html(createLeftPanel('script','record__portlet','../..'));
+        });
+    </script>
+
+
+<script type="text/javascript">
+    $().ready(function(){
+        $(".jtable th").each(function(){
+
+            $(this).addClass("ui-state-default");
+
+        });
+        $(".jtable td").each(function(){
+
+            $(this).addClass("ui-widget-content");
+
+        });
+
+    });
+</script>
+
+
+<div id="contentPanel">
+
+<H1>Portlet</H1>
+<H3>Internal ID: portlet</H3>
+
+
+
+
+
+    <H2>Fields</H2>
+    <table class="jtable">
+        <tr><th class="rt_fname">Internal ID</th><th class="rt_ftype">Type</th><th class="rt_fdle">nlapiSubmitField</th><th class="rt_flabel">Label</th><th class="rt_freq">Required</th><th class="rt_fhelp">Help</th></tr>
+            <tr id="field_defaultfunction">
+                <td class="rt_fname">defaultfunction</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Function</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_description">
+                <td class="rt_fname">description</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Description</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_externalid">
+                <td class="rt_fname">externalid</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">ExternalId</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_isinactive">
+                <td class="rt_fname">isinactive</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Inactive</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_name">
+                <td class="rt_fname">name</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Name</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_notifyadmins">
+                <td class="rt_fname">notifyadmins</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Notify All Admins</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_notifyemails">
+                <td class="rt_fname">notifyemails</td>
+                <td class="rt_ftype">emails</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Notify Emails</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_notifygroup">
+                <td class="rt_fname">notifygroup</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Notify Group</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_notifyowner">
+                <td class="rt_fname">notifyowner</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Notify Script Owner</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_notifyuser">
+                <td class="rt_fname">notifyuser</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Notify Current User</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_owner">
+                <td class="rt_fname">owner</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Owner</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_portlettype">
+                <td class="rt_fname">portlettype</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Portlet Type</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_scriptfile">
+                <td class="rt_fname">scriptfile</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Script File</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_scriptid">
+                <td class="rt_fname">scriptid</td>
+                <td class="rt_ftype">identifier</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">ID</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_scripttype">
+                <td class="rt_fname">scripttype</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Type</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+    </table>
+
+
+    <H2>Tabs</H2>
+    <table class="jtable">
+        <tr><th class="rt_tname">Name</th><th class="rt_tlabel">Label</th></tr>
+            <tr>
+                <td class="rt_tname">errorhandling</td>
+                <td class="rt_tlabel">Unhandled Errors</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">executionlog</td>
+                <td class="rt_tlabel">Execution Log</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">historytab</td>
+                <td class="rt_tlabel">History</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">scriptdeployments</td>
+                <td class="rt_tlabel">Deployments</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">scripts</td>
+                <td class="rt_tlabel">Scripts</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">tab_parameters</td>
+                <td class="rt_tlabel">Parameters</td>
+            </tr>
+    </table>
+
+    <H2>Search Joins</H2>
+    <table class="jtable">
+        <tr><th class="rt_jid">Join ID</th><th class="rt_jlabel">Join Description</th><th class="rt_jname">Actual Join Name</th></tr>
+            <tr>
+                <td class="rt_jid">user</td>
+                <td class="rt_jlabel">User</td>
+                <td class="rt_jname">Employee</td>
+            </tr>
+    </table>
+
+    <H2>Search Filters</H2>
+    <table class="jtable">
+        <tr><th class="rt_iname">Internal ID</th><th class="rt_itype">Type</th><th class="rt_ilabel">Label</th></tr>
+            <tr>
+                <td class="rt_iname">afterinstallfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">After Install Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">aftersubmitfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">After Submit Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">afterupdatefunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">After Update Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">beforeinstallfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Before Install Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">beforeloadfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Before Load Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">beforesubmitfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Before Submit Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">beforeuninstallfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Before Uninstall Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">beforeupdatefunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Before Update Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">defaultfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Default Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">deletefunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Delete Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">description</td>
+                <td class="rt_itype">textarea</td>
+                <td class="rt_ilabel">Details</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">fieldchangedfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Field Changed Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formuladate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulanumeric</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulatext</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">getfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Get Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalidnumber</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Internal ID (Number)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isinactive</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Inactive</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lineinitfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Line Init Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">name</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">owner</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Owner</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">pageinitfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Page Init Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">portlettype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Portlet Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">postfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Post Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">postsourcingfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Post Sourcing Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">putfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Put Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">recalcfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Recalc Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">saverecordfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Save Record Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">scriptfile</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Script File</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">scriptid</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Script ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">scripttype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Script Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">validatedeletefunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Validate Delete Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">validatefieldfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Validate Field Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">validateinsertfunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Validate Insert Function</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">validatelinefunction</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Validate Line Function</td>
+            </tr>
+    </table>
+
+    <H2>Search Columns</H2>
+    <table class="jtable">
+        <tr><th class="rt_cname">Internal ID</th><th class="rt_ctype">Type</th><th class="rt_clabel">Label</th></tr>
+            <tr>
+                <td class="rt_cname">afterinstallfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">After Install Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">aftersubmitfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">After Submit Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">afterupdatefunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">After Update Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">beforeinstallfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Before Install Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">beforeloadfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Before Load Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">beforesubmitfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Before Submit Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">beforeuninstallfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Before Uninstall Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">beforeupdatefunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Before Update Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">defaultfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Default Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">deletefunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">DELETE Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">description</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Description</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">fieldchangedfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Field Changed Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulacurrency</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Formula (Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladatetime</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Formula (Date/Time)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulanumeric</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulapercent</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">Formula (Percent)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulatext</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">getfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">GET Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">internalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isinactive</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Inactive</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lineinitfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Line Init Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">name</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">owner</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Owner</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">pageinitfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Page Init Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">postfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">POST Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">postsourcingfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Post Sourcing Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">putfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">PUT Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">recalcfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Recalc Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">saverecordfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Save Record Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">scriptfile</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Script File</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">scriptid</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Script ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">scripttype</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Script Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">validatedeletefunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Validate Delete Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">validatefieldfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Validate Field Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">validateinsertfunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Validate Insert Function</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">validatelinefunction</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Validate Line Function</td>
+            </tr>
+    </table>
+
+    <p>&nbsp;</p>
+</div>
+    <script>
+         $(function() {
+             wrapBodyDiv('script','contentPanel');
+         });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,975 @@
+<html>
+<head>
+<link href="../../jquery-ui.css" rel="stylesheet">
+<link href="../../schema-browser.css" rel="stylesheet">
+<script src="../../javascript/jquery-1.10.2.min.js"></script>
+<script src="../../javascript/jquery-ui.min.js"></script>
+<script src="../../menudefs.js"></script>
+<script src="../../javascript/menubuilder.js"></script>
+
+<script>
+    (function( $ ){
+        //plugin buttonset vertical
+        $.fn.buttonsetv = function() {
+            $(':radio, :checkbox, :button', this).wrap('<div style="margin: 1px"/>');
+            $(this).buttonset();
+            $('label:first', this).removeClass('ui-corner-left').addClass('ui-corner-top');
+            $('label:last', this).removeClass('ui-corner-right').addClass('ui-corner-bottom');
+            mw = 0; // max witdh
+            $('label', this).each(function(index){
+                w = $(this).width();
+                if (w > mw) mw = w;
+            })
+            $('label', this).each(function(index){
+                $(this).width(mw);
+            })
+        };
+    })( jQuery );
+
+    function getURLParameter(name) {
+        return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+    }
+</script>
+
+<style>
+    .custom-combobox {
+        position: relative;
+        display: inline-block;
+    }
+    .custom-combobox-toggle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        margin-left: -1px;
+        padding: 0;
+        /* support: IE7 */
+        *height: 1.7em;
+        *top: 0.1em;
+    }
+    .custom-combobox-input {
+        margin: 0;
+        padding: 0.3em;
+    }
+</style>
+
+
+<script>
+    (function( $ ) {
+        $.widget( "custom.combobox_with_optgroup", {
+            _create: function() {
+                this.wrapper = $( "<span>" )
+                        .addClass( "custom-combobox" )
+                        .insertAfter( this.element );
+                this.element.hide();
+                this._createAutocomplete();
+                this._createShowAllButton();
+            },
+            _createAutocomplete: function() {
+                var selected = this.element.find( ":selected" ),
+                        value = selected.val() ? selected.text() : "";
+                this.input = $( "<input>" )
+                        .appendTo( this.wrapper )
+                        .val( value )
+                        .attr( "title", "" )
+                        .addClass( "custom-combobox-input ui-widget ui-widget-content ui-state-default ui-corner-left" )
+                        .autocomplete({
+                                          delay: 0,
+                                          minLength: 0,
+                                          source: $.proxy( this, "_source" )
+                                      })
+                        .tooltip({
+                                     tooltipClass: "ui-state-highlight"
+                                 })
+                        ;
+                this._on( this.input, {
+                    autocompleteselect: function( event, ui ) {
+                        ui.item.option.selected = true;
+                        window.location.href=ui.item.href;
+//                        this._trigger( "select", event, {
+//                            item: ui.item.option
+//                        });
+                    },
+                    autocompletechange: "_removeIfInvalid"
+                });
+
+                this.input.data("uiAutocomplete")._renderMenu = function(ul, items) {
+                    var self = this,
+                    currentCategory = "";
+                    var itemCounter=100;
+                    $.each(items, function(index, item) {
+                        itemCounter=itemCounter+1;
+                        if (item.category != currentCategory) {
+                            if (item.category) {
+                                ul.append("<li class='custom-autocomplete-category'>" + item.category + "</li>");
+                            }
+                            currentCategory = item.category;
+                        }
+                        self._renderItem= function( ul, item ) {
+                            return $( "<li>").attr("class",item.class)
+                                    .append( $( "<a>" ).attr("href",item.href).text( item.label ) )
+                                    .appendTo( ul );
+                        };
+                        self._renderItemData(ul, item);
+                    });
+                };
+            },
+
+            _createShowAllButton: function() {
+                var input = this.input,
+                        wasOpen = false;
+                $( "<a>" )
+                        .attr( "tabIndex", -1 )
+                        .attr( "title", "Show All" )
+                        .tooltip()
+                        .appendTo( this.wrapper )
+                        .button({
+                                   /* icons: {
+                                        primary: "ui-icon-triangle-1-s"
+                                    },*/
+                                    text: false
+                                })
+                        .removeClass( "ui-corner-all" )
+                        .addClass( "custom-combobox-toggle ui-corner-right" )
+                        .mousedown(function() {
+                                       wasOpen = input.autocomplete( "widget" ).is( ":visible" );
+                                   })
+                        .click(function() {
+                                   input.focus();
+
+                                   if ( wasOpen ) {
+                                       return;
+                                   }
+
+                                   input.autocomplete( "search", "" );
+                               });
+            },
+            _source: function( request, response ) {
+                var matcher = new RegExp( $.ui.autocomplete.escapeRegex(request.term), "i" );
+                response( this.element.find( "option" ).map(function() {
+                    var text = $( this ).text();
+                    if ( this.value && ( !request.term || matcher.test(text) ) )
+                        return {
+                            label: text,
+                            value: text,
+                            option: this,
+                            class: $(this).attr("class"),
+                            href: $(this).attr("href"),
+                            category: $(this).closest("optgroup").attr("label")
+                        };
+                }) );
+            },
+            _removeIfInvalid: function( event, ui ) {
+
+                if ( ui.item ) {
+                    return;
+                }
+
+                var value = this.input.val(),
+                        valueLowerCase = value.toLowerCase(),
+                        valid = false;
+                this.element.find( "option" ).each(function() {
+                    if ( $( this ).text().toLowerCase() === valueLowerCase ) {
+                        this.selected = valid = true;
+                        return false;
+                    }
+                });
+
+                if ( valid ) {
+                    return;
+                }
+
+                this.input
+                        .val( "" )
+                        .attr( "title", value + " not found" )
+                        .tooltip( "open" );
+                this.element.val( "" );
+                this._delay(function() {
+                    this.input.tooltip( "close" ).attr( "title", "" );
+                }, 2500 );
+                this.input.data( "ui-autocomplete" ).term = "";
+            },
+            _destroy: function() {
+                this.wrapper.remove();
+                this.element.show();
+            },
+            getInput: function(){
+                return this.input;
+            }
+        });
+    })( jQuery );
+</script>
+
+</head>
+
+<body>
+
+     <div id='header'></div>
+     <script>
+         $(function() {
+             $('#header').html(createHeader('script','record__manufacturingoperationtask','../..'));
+         });
+     </script>
+
+
+    <div id='leftpanel'></div>
+    <script>
+        $(function() {
+            $('#leftpanel').html(createLeftPanel('script','record__manufacturingoperationtask','../..'));
+        });
+    </script>
+
+
+<script type="text/javascript">
+    $().ready(function(){
+        $(".jtable th").each(function(){
+
+            $(this).addClass("ui-state-default");
+
+        });
+        $(".jtable td").each(function(){
+
+            $(this).addClass("ui-widget-content");
+
+        });
+
+    });
+</script>
+
+
+<div id="contentPanel">
+
+<H1>Manufacturing Operation Task</H1>
+<H3>Internal ID: manufacturingoperationtask</H3>
+
+
+
+
+
+    <H2>Fields</H2>
+    <table class="jtable">
+        <tr><th class="rt_fname">Internal ID</th><th class="rt_ftype">Type</th><th class="rt_fdle">nlapiSubmitField</th><th class="rt_flabel">Label</th><th class="rt_freq">Required</th><th class="rt_fhelp">Help</th></tr>
+            <tr id="field_actualruntime">
+                <td class="rt_fname">actualruntime</td>
+                <td class="rt_ftype">float</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Actual Run Time (Min)</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_actualsetuptime">
+                <td class="rt_fname">actualsetuptime</td>
+                <td class="rt_ftype">float</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Actual Setup Time (Min)</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_actualwork">
+                <td class="rt_fname">actualwork</td>
+                <td class="rt_ftype">float</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Actual Hours</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_company">
+                <td class="rt_fname">company</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Project</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_completedquantity">
+                <td class="rt_fname">completedquantity</td>
+                <td class="rt_ftype">float</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Completed Quantity</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_constrainttype">
+                <td class="rt_fname">constrainttype</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Type</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_contact">
+                <td class="rt_fname">contact</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Contact</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_customform">
+                <td class="rt_fname">customform</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Custom Form</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_enddate">
+                <td class="rt_fname">enddate</td>
+                <td class="rt_ftype">date</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">End Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_enddatebaseline">
+                <td class="rt_fname">enddatebaseline</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">End Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_estimatedwork">
+                <td class="rt_fname">estimatedwork</td>
+                <td class="rt_ftype">float</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Estimated Hours</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_estimatedworkbaseline">
+                <td class="rt_fname">estimatedworkbaseline</td>
+                <td class="rt_ftype">float</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Hours</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_eventid">
+                <td class="rt_fname">eventid</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">ID</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_externalid">
+                <td class="rt_fname">externalid</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">ExternalId</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_fxrate">
+                <td class="rt_fname">fxrate</td>
+                <td class="rt_ftype">currency2</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Exchange Rate</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_inputquantity">
+                <td class="rt_fname">inputquantity</td>
+                <td class="rt_ftype">float</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Input Quantity</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_laborresources">
+                <td class="rt_fname">laborresources</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Labor Resources</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_machineresources">
+                <td class="rt_fname">machineresources</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Machine Resources</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_manufacturingcosttemplate">
+                <td class="rt_fname">manufacturingcosttemplate</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Manufacturing Cost Template</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_manufacturingworkcenter">
+                <td class="rt_fname">manufacturingworkcenter</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Manufacturing Work Center</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_message">
+                <td class="rt_fname">message</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Comments</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_operationsequence">
+                <td class="rt_fname">operationsequence</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Operation Sequence</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_order">
+                <td class="rt_fname">order</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Insert Before</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_owner">
+                <td class="rt_fname">owner</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Owner</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_percenttimecomplete">
+                <td class="rt_fname">percenttimecomplete</td>
+                <td class="rt_ftype">percent</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Percent Complete</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_priority">
+                <td class="rt_fname">priority</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Priority</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_remainingwork">
+                <td class="rt_fname">remainingwork</td>
+                <td class="rt_ftype">float</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Remaining Hours</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_runrate">
+                <td class="rt_fname">runrate</td>
+                <td class="rt_ftype">float</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Run Rate (Min/Unit)</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_setuptime">
+                <td class="rt_fname">setuptime</td>
+                <td class="rt_ftype">float</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Setup Time (Min)</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_startdate">
+                <td class="rt_fname">startdate</td>
+                <td class="rt_ftype">date</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Start Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_startdatebaseline">
+                <td class="rt_fname">startdatebaseline</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Start Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_starttime">
+                <td class="rt_fname">starttime</td>
+                <td class="rt_ftype">timeofday</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Start Time</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_status">
+                <td class="rt_fname">status</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Status</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_title">
+                <td class="rt_fname">title</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Operation Name</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_workorder">
+                <td class="rt_fname">workorder</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Work Order</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+    </table>
+
+    <H2>Sublists</H2>
+            <H4><span id="field_costdetail_">costdetail - Costs</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_costdetail_account">
+                        <td class="rt_sname">account</td>
+                        <td class="rt_stype">integer</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_costdetail_costcategory">
+                        <td class="rt_sname">costcategory</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Cost Category</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_costdetail_fixedrate">
+                        <td class="rt_sname">fixedrate</td>
+                        <td class="rt_stype">currency2</td>
+                        <td class="rt_slabel">Fixed Rate</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_costdetail_id">
+                        <td class="rt_sname">id</td>
+                        <td class="rt_stype">integer</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_costdetail_item">
+                        <td class="rt_sname">item</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Item</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_costdetail_runrate">
+                        <td class="rt_sname">runrate</td>
+                        <td class="rt_stype">currency2</td>
+                        <td class="rt_slabel">Run Rate</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_predecessor_">predecessor - Predecessors</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_predecessor_enddate">
+                        <td class="rt_sname">enddate</td>
+                        <td class="rt_stype">datetime</td>
+                        <td class="rt_slabel">End Date</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_predecessor_startdate">
+                        <td class="rt_sname">startdate</td>
+                        <td class="rt_stype">datetime</td>
+                        <td class="rt_slabel">Start Date</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_predecessor_task">
+                        <td class="rt_sname">task</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Task</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_predecessor_type">
+                        <td class="rt_sname">type</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Type</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+            </table>
+
+
+    <H2>Tabs</H2>
+    <table class="jtable">
+        <tr><th class="rt_tname">Name</th><th class="rt_tlabel">Label</th></tr>
+            <tr>
+                <td class="rt_tname">assignees</td>
+                <td class="rt_tlabel">Assignees</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">communication</td>
+                <td class="rt_tlabel">Communication</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">costdetails</td>
+                <td class="rt_tlabel">Cost Details</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">custom</td>
+                <td class="rt_tlabel">Custom</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">messagetab</td>
+                <td class="rt_tlabel">Message</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">predecessors</td>
+                <td class="rt_tlabel">Predecessors</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">s_sysinfo</td>
+                <td class="rt_tlabel">System Information</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">workflow</td>
+                <td class="rt_tlabel">Workflow</td>
+            </tr>
+    </table>
+
+    <H2>Search Joins</H2>
+    <table class="jtable">
+        <tr><th class="rt_jid">Join ID</th><th class="rt_jlabel">Join Description</th><th class="rt_jname">Actual Join Name</th></tr>
+            <tr>
+                <td class="rt_jid">user</td>
+                <td class="rt_jlabel">User</td>
+                <td class="rt_jname">Employee</td>
+            </tr>
+    </table>
+
+    <H2>Search Filters</H2>
+    <table class="jtable">
+        <tr><th class="rt_iname">Internal ID</th><th class="rt_itype">Type</th><th class="rt_ilabel">Label</th></tr>
+            <tr>
+                <td class="rt_iname">actualruntime</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Actual Run Time</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">actualsetuptime</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Actual Setup Time</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">completedquantity</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Completed Quantity</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">enddate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">End Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">estimatedwork</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Estimated Work</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">externalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">External ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">externalidstring</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">External ID (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formuladate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulanumeric</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulatext</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">id</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">inputquantity</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Input Quantity</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalidnumber</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Internal ID (Number)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">laborresources</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Labor Resources</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">machineresources</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Machine Resources</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">manufacturingcosttemplate</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Manufacturing Cost Template</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">manufacturingworkcenter</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Manufacturing Work Center</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">name</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Operation Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">order</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Order</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">predecessor</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Predecessor</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">remainingquantity</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Remaining Quantity</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">runrate</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Run Rate (Min/Unit)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">runtime</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Run Time (Min)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">sequence</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Operation Sequence</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">setuptime</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Setup Time (Min)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">startdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Start Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">status</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Status</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">workorder</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Work Order</td>
+            </tr>
+    </table>
+
+    <H2>Search Columns</H2>
+    <table class="jtable">
+        <tr><th class="rt_cname">Internal ID</th><th class="rt_ctype">Type</th><th class="rt_clabel">Label</th></tr>
+            <tr>
+                <td class="rt_cname">actualruntime</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Actual Run Time</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">actualsetuptime</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Actual Setup Time</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">completedquantity</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Completed Quantity</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">enddate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">End Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">estimatedwork</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Estimated Work</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">externalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">External ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulacurrency</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Formula (Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladatetime</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Formula (Date/Time)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulanumeric</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulapercent</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">Formula (Percent)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulatext</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">id</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">inputquantity</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Input Quantity</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">internalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">laborresources</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Labor Resources</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">machineresources</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Machine Resources</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">manufacturingcosttemplate</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Manufacturing Cost Template</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">manufacturingworkcenter</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Manufacturing Work Center</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">message</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Notes</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">name</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Operation Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">order</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Order</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">predecessor</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Predecessor</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">predecessortype</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Predecessor Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">remainingquantity</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Remaining Quantity</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">runrate</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Run Rate (Min/Unit)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">runtime</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Run Time</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">sequence</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Operation Sequence</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">setuptime</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Setup Time (Min)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">startdate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Start Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">status</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Status</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">workorder</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Work Order</td>
+            </tr>
+    </table>
+
+    <p>&nbsp;</p>
+</div>
+    <script>
+         $(function() {
+             wrapBodyDiv('script','contentPanel');
+         });
+    </script>
+
+</body>
+</html>

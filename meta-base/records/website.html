@@ -1,0 +1,1507 @@
+<html>
+<head>
+<link href="../../jquery-ui.css" rel="stylesheet">
+<link href="../../schema-browser.css" rel="stylesheet">
+<script src="../../javascript/jquery-1.10.2.min.js"></script>
+<script src="../../javascript/jquery-ui.min.js"></script>
+<script src="../../menudefs.js"></script>
+<script src="../../javascript/menubuilder.js"></script>
+
+<script>
+    (function( $ ){
+        //plugin buttonset vertical
+        $.fn.buttonsetv = function() {
+            $(':radio, :checkbox, :button', this).wrap('<div style="margin: 1px"/>');
+            $(this).buttonset();
+            $('label:first', this).removeClass('ui-corner-left').addClass('ui-corner-top');
+            $('label:last', this).removeClass('ui-corner-right').addClass('ui-corner-bottom');
+            mw = 0; // max witdh
+            $('label', this).each(function(index){
+                w = $(this).width();
+                if (w > mw) mw = w;
+            })
+            $('label', this).each(function(index){
+                $(this).width(mw);
+            })
+        };
+    })( jQuery );
+
+    function getURLParameter(name) {
+        return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+    }
+</script>
+
+<style>
+    .custom-combobox {
+        position: relative;
+        display: inline-block;
+    }
+    .custom-combobox-toggle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        margin-left: -1px;
+        padding: 0;
+        /* support: IE7 */
+        *height: 1.7em;
+        *top: 0.1em;
+    }
+    .custom-combobox-input {
+        margin: 0;
+        padding: 0.3em;
+    }
+</style>
+
+
+<script>
+    (function( $ ) {
+        $.widget( "custom.combobox_with_optgroup", {
+            _create: function() {
+                this.wrapper = $( "<span>" )
+                        .addClass( "custom-combobox" )
+                        .insertAfter( this.element );
+                this.element.hide();
+                this._createAutocomplete();
+                this._createShowAllButton();
+            },
+            _createAutocomplete: function() {
+                var selected = this.element.find( ":selected" ),
+                        value = selected.val() ? selected.text() : "";
+                this.input = $( "<input>" )
+                        .appendTo( this.wrapper )
+                        .val( value )
+                        .attr( "title", "" )
+                        .addClass( "custom-combobox-input ui-widget ui-widget-content ui-state-default ui-corner-left" )
+                        .autocomplete({
+                                          delay: 0,
+                                          minLength: 0,
+                                          source: $.proxy( this, "_source" )
+                                      })
+                        .tooltip({
+                                     tooltipClass: "ui-state-highlight"
+                                 })
+                        ;
+                this._on( this.input, {
+                    autocompleteselect: function( event, ui ) {
+                        ui.item.option.selected = true;
+                        window.location.href=ui.item.href;
+//                        this._trigger( "select", event, {
+//                            item: ui.item.option
+//                        });
+                    },
+                    autocompletechange: "_removeIfInvalid"
+                });
+
+                this.input.data("uiAutocomplete")._renderMenu = function(ul, items) {
+                    var self = this,
+                    currentCategory = "";
+                    var itemCounter=100;
+                    $.each(items, function(index, item) {
+                        itemCounter=itemCounter+1;
+                        if (item.category != currentCategory) {
+                            if (item.category) {
+                                ul.append("<li class='custom-autocomplete-category'>" + item.category + "</li>");
+                            }
+                            currentCategory = item.category;
+                        }
+                        self._renderItem= function( ul, item ) {
+                            return $( "<li>").attr("class",item.class)
+                                    .append( $( "<a>" ).attr("href",item.href).text( item.label ) )
+                                    .appendTo( ul );
+                        };
+                        self._renderItemData(ul, item);
+                    });
+                };
+            },
+
+            _createShowAllButton: function() {
+                var input = this.input,
+                        wasOpen = false;
+                $( "<a>" )
+                        .attr( "tabIndex", -1 )
+                        .attr( "title", "Show All" )
+                        .tooltip()
+                        .appendTo( this.wrapper )
+                        .button({
+                                   /* icons: {
+                                        primary: "ui-icon-triangle-1-s"
+                                    },*/
+                                    text: false
+                                })
+                        .removeClass( "ui-corner-all" )
+                        .addClass( "custom-combobox-toggle ui-corner-right" )
+                        .mousedown(function() {
+                                       wasOpen = input.autocomplete( "widget" ).is( ":visible" );
+                                   })
+                        .click(function() {
+                                   input.focus();
+
+                                   if ( wasOpen ) {
+                                       return;
+                                   }
+
+                                   input.autocomplete( "search", "" );
+                               });
+            },
+            _source: function( request, response ) {
+                var matcher = new RegExp( $.ui.autocomplete.escapeRegex(request.term), "i" );
+                response( this.element.find( "option" ).map(function() {
+                    var text = $( this ).text();
+                    if ( this.value && ( !request.term || matcher.test(text) ) )
+                        return {
+                            label: text,
+                            value: text,
+                            option: this,
+                            class: $(this).attr("class"),
+                            href: $(this).attr("href"),
+                            category: $(this).closest("optgroup").attr("label")
+                        };
+                }) );
+            },
+            _removeIfInvalid: function( event, ui ) {
+
+                if ( ui.item ) {
+                    return;
+                }
+
+                var value = this.input.val(),
+                        valueLowerCase = value.toLowerCase(),
+                        valid = false;
+                this.element.find( "option" ).each(function() {
+                    if ( $( this ).text().toLowerCase() === valueLowerCase ) {
+                        this.selected = valid = true;
+                        return false;
+                    }
+                });
+
+                if ( valid ) {
+                    return;
+                }
+
+                this.input
+                        .val( "" )
+                        .attr( "title", value + " not found" )
+                        .tooltip( "open" );
+                this.element.val( "" );
+                this._delay(function() {
+                    this.input.tooltip( "close" ).attr( "title", "" );
+                }, 2500 );
+                this.input.data( "ui-autocomplete" ).term = "";
+            },
+            _destroy: function() {
+                this.wrapper.remove();
+                this.element.show();
+            },
+            getInput: function(){
+                return this.input;
+            }
+        });
+    })( jQuery );
+</script>
+
+</head>
+
+<body>
+
+     <div id='header'></div>
+     <script>
+         $(function() {
+             $('#header').html(createHeader('script','record__website','../..'));
+         });
+     </script>
+
+
+    <div id='leftpanel'></div>
+    <script>
+        $(function() {
+            $('#leftpanel').html(createLeftPanel('script','record__website','../..'));
+        });
+    </script>
+
+
+<script type="text/javascript">
+    $().ready(function(){
+        $(".jtable th").each(function(){
+
+            $(this).addClass("ui-state-default");
+
+        });
+        $(".jtable td").each(function(){
+
+            $(this).addClass("ui-widget-content");
+
+        });
+
+    });
+</script>
+
+
+<div id="contentPanel">
+
+<H1>Website</H1>
+<H3>Internal ID: website</H3>
+
+
+
+
+
+    <H2>Fields</H2>
+    <table class="jtable">
+        <tr><th class="rt_fname">Internal ID</th><th class="rt_ftype">Type</th><th class="rt_fdle">nlapiSubmitField</th><th class="rt_flabel">Label</th><th class="rt_freq">Required</th><th class="rt_fhelp">Help</th></tr>
+            <tr id="field_analyticsclickattributes">
+                <td class="rt_fname">analyticsclickattributes</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Analytics Click Attributes</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_analyticssubmitattributes">
+                <td class="rt_fname">analyticssubmitattributes</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Analytics Submit Attributes</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_autodownloadmedia">
+                <td class="rt_fname">autodownloadmedia</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Automatically download published site media items</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_cartdisplayorder">
+                <td class="rt_fname">cartdisplayorder</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Display Order of Cart Items</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_cartupsellitems">
+                <td class="rt_fname">cartupsellitems</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Items to Upsell in Cart</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_categorylistlayout">
+                <td class="rt_fname">categorylistlayout</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Default Category List Layout</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_ccformtemplate">
+                <td class="rt_fname">ccformtemplate</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Credit Card Form</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_ccrequireauth">
+                <td class="rt_fname">ccrequireauth</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Require Authorization for Credit Card Transactions</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_checkoutdomain">
+                <td class="rt_fname">checkoutdomain</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Checkout URL</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_colorset">
+                <td class="rt_fname">colorset</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Web Site Color Theme</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_confpagetrackinghtml">
+                <td class="rt_fname">confpagetrackinghtml</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Order Tracking Script HTML</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_cookiepolicy">
+                <td class="rt_fname">cookiepolicy</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Cookie Policy</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_createcustomersascompanies">
+                <td class="rt_fname">createcustomersascompanies</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Create Customers as Companies</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_custromeregistrationtype">
+                <td class="rt_fname">custromeregistrationtype</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Customer registration is</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_defaultcustomercategory">
+                <td class="rt_fname">defaultcustomercategory</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Default Customer Category</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_defaulthostingroot">
+                <td class="rt_fname">defaulthostingroot</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Default Hosting Root</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_defaultshippingcountry">
+                <td class="rt_fname">defaultshippingcountry</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Default Shipping Country for Checkout</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_defaultshippingmethod">
+                <td class="rt_fname">defaultshippingmethod</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Default Web Site Shipping Method</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_descriptionfontsize">
+                <td class="rt_fname">descriptionfontsize</td>
+                <td class="rt_ftype">posinteger</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Description Font Size</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_displaycompanyfield">
+                <td class="rt_fname">displaycompanyfield</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Display Company Field on Registration Page</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_displayname">
+                <td class="rt_fname">displayname</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Display Name</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_displayunsubscribe">
+                <td class="rt_fname">displayunsubscribe</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Display Unsubscribe to Email Checkbox on Registration Page</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_doctypehtml">
+                <td class="rt_fname">doctypehtml</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Document Type</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_emailfooter">
+                <td class="rt_fname">emailfooter</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Footer Text</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_emailheader">
+                <td class="rt_fname">emailheader</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Header Text</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_enablegaintegration">
+                <td class="rt_fname">enablegaintegration</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Enable Google Analytics Integration</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_externalid">
+                <td class="rt_fname">externalid</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">ExternalId</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_font">
+                <td class="rt_fname">font</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Web Site Font</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_gconotificationurl">
+                <td class="rt_fname">gconotificationurl</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Google Notification URL</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_giftcerteaffectsminamount">
+                <td class="rt_fname">giftcerteaffectsminamount</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Gift Certificate Affects Minimum Order Amount</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_hidepaymentpagewhennobalance">
+                <td class="rt_fname">hidepaymentpagewhennobalance</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Hide payment page if order total equals zero</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_igniteedition">
+                <td class="rt_fname">igniteedition</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Type</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_includeuncategorizeditems">
+                <td class="rt_fname">includeuncategorizeditems</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Show Uncategorized Items</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_includevatwithprices">
+                <td class="rt_fname">includevatwithprices</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Prices Include Tax</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_internalname">
+                <td class="rt_fname">internalname</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Internal Name</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_invoiceformtemplate">
+                <td class="rt_fname">invoiceformtemplate</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Invoice Form</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_isscriptablecartandcheckout">
+                <td class="rt_fname">isscriptablecartandcheckout</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Scriptable Cart and Checkout</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_iswebstoreoffline">
+                <td class="rt_fname">iswebstoreoffline</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Take Web Site Offline for Maintenance</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_iswsdk">
+                <td class="rt_fname">iswsdk</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">WSDK</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_itemlistlayout">
+                <td class="rt_fname">itemlistlayout</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Default Item List Layout</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_itemtemplateaccountingtitem">
+                <td class="rt_fname">itemtemplateaccountingtitem</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Default Item Drilldown Template</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_itemtemplateinformationitem">
+                <td class="rt_fname">itemtemplateinformationitem</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Default Info Item Drilldown Template</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_legacycategorydescriptions">
+                <td class="rt_fname">legacycategorydescriptions</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Legacy Category Descriptions</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_legacydenselistsupport">
+                <td class="rt_fname">legacydenselistsupport</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Legacy Dense List Layout</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_legacyimageattributetags">
+                <td class="rt_fname">legacyimageattributetags</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Legacy Tag Support for Images</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_legacynavigationlinks">
+                <td class="rt_fname">legacynavigationlinks</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Legacy Navigation Style</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_legacywelcomepage">
+                <td class="rt_fname">legacywelcomepage</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Legacy Welcome Page Style</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_nameorig">
+                <td class="rt_fname">nameorig</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Name</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_noactivatetabonhostedpages">
+                <td class="rt_fname">noactivatetabonhostedpages</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Don't Activate Hosted Page Tabs</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_onlinepricelevel">
+                <td class="rt_fname">onlinepricelevel</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Price Level</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_outofstockitems">
+                <td class="rt_fname">outofstockitems</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Web Store Out Of Stock Items</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_outputlinebreaksasbr">
+                <td class="rt_fname">outputlinebreaksasbr</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Output Line Breaks as &amp;lt;br&amp;gt;</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_pagealign">
+                <td class="rt_fname">pagealign</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Page Alignment</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_pagewidth">
+                <td class="rt_fname">pagewidth</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Page Width</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_pagezoom">
+                <td class="rt_fname">pagezoom</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Zoom</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_passpromocodetocheckout">
+                <td class="rt_fname">passpromocodetocheckout</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Pass URL Promotion Code to Checkout</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_relateditemsdescription">
+                <td class="rt_fname">relateditemsdescription</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Related Items</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_relateditemslayout">
+                <td class="rt_fname">relateditemslayout</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Default Related Items Layout</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_requestshippingaddressfirst">
+                <td class="rt_fname">requestshippingaddressfirst</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Ask For Shipping Address First</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_requirecompanyfield">
+                <td class="rt_fname">requirecompanyfield</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Mandatory</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_requireloginforpricing">
+                <td class="rt_fname">requireloginforpricing</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Require Login For Pricing</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_requireshippinginformation">
+                <td class="rt_fname">requireshippinginformation</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Shipping Information is Required</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_requiretermsandconditions">
+                <td class="rt_fname">requiretermsandconditions</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Require Terms and Conditions</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_salesordertype">
+                <td class="rt_fname">salesordertype</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Sales Order Type</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_savecreditinfo">
+                <td class="rt_fname">savecreditinfo</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Save Credit Card Info by Default</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_scripttemplatecreditcard">
+                <td class="rt_fname">scripttemplatecreditcard</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Scripting Template (Credit Card)</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_scripttemplateinvoice">
+                <td class="rt_fname">scripttemplateinvoice</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Scripting Template (Invoice)</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_searchcategorylistlayout">
+                <td class="rt_fname">searchcategorylistlayout</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Category List Layout</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_searchforcategories">
+                <td class="rt_fname">searchforcategories</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Include Categories</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_searchforinformationitems">
+                <td class="rt_fname">searchforinformationitems</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Include Information Items</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_searchformitemlistlayout">
+                <td class="rt_fname">searchformitemlistlayout</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Item List Layout</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_searchitemlistlayout">
+                <td class="rt_fname">searchitemlistlayout</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Item List Layout</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_searchlinkform">
+                <td class="rt_fname">searchlinkform</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Search Link Form</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_searchportletdisplay">
+                <td class="rt_fname">searchportletdisplay</td>
+                <td class="rt_ftype">radio</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Global Search</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_searchportletform">
+                <td class="rt_fname">searchportletform</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Search Portlet Form</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_searchresultforinvalidurls">
+                <td class="rt_fname">searchresultforinvalidurls</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Return Invalid URLs as Search Results</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_semailaddrforerror">
+                <td class="rt_fname">semailaddrforerror</td>
+                <td class="rt_ftype">emails</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Email To</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_shipstoallcountries">
+                <td class="rt_fname">shipstoallcountries</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Web Store Ships to all countries</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_shipstocountries">
+                <td class="rt_fname">shipstocountries</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Countries Web Store Ships To</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showbillingaddress">
+                <td class="rt_fname">showbillingaddress</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Display Billing Address</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showcartsummaryportlet">
+                <td class="rt_fname">showcartsummaryportlet</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Show Cart Summary</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showcookieconsentbanner">
+                <td class="rt_fname">showcookieconsentbanner</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Show Cookie Consent Banner</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showcurrencyportlet">
+                <td class="rt_fname">showcurrencyportlet</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Show Web Site Currency</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showextendedcart">
+                <td class="rt_fname">showextendedcart</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Show Extended Cart</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_shownavigationportlet">
+                <td class="rt_fname">shownavigationportlet</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Show Navigation Portlet</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showordertrackinglink">
+                <td class="rt_fname">showordertrackinglink</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Display Order Tracking Link</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showpofieldonpayment">
+                <td class="rt_fname">showpofieldonpayment</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Display Purchase Order Field on Payment Info Page</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showquantitypricinginlists">
+                <td class="rt_fname">showquantitypricinginlists</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Show Quantity Pricing in Lists</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showsavecreditinfo">
+                <td class="rt_fname">showsavecreditinfo</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Display 'Save My Credit Card Info' Field</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showsearchportlet">
+                <td class="rt_fname">showsearchportlet</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Show Search</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showshippingestimator">
+                <td class="rt_fname">showshippingestimator</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Show Shipping Estimator in Cart</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_showtellafriendlink">
+                <td class="rt_fname">showtellafriendlink</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Show &quot;Tell a Friend&quot; Link</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_siteloginrequired">
+                <td class="rt_fname">siteloginrequired</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Password-Protect Entire Site</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_siteportletstyle">
+                <td class="rt_fname">siteportletstyle</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Site Portlet Style</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_sitetabalignment">
+                <td class="rt_fname">sitetabalignment</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Site Tab Alignment</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_sitetabstyle">
+                <td class="rt_fname">sitetabstyle</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Site Tab Style</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_siteusescarttags">
+                <td class="rt_fname">siteusescarttags</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Site Uses Cart Summary Tags</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_siteusesdropshadows">
+                <td class="rt_fname">siteusesdropshadows</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Site Uses Drop Shadows</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_sstoreemailaddrforcopy">
+                <td class="rt_fname">sstoreemailaddrforcopy</td>
+                <td class="rt_ftype">emails</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Email To</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_sstoreemailaddrforgiftconfcopy">
+                <td class="rt_fname">sstoreemailaddrforgiftconfcopy</td>
+                <td class="rt_ftype">emails</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Email To</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_sstoreemailaddrforgiftcopy">
+                <td class="rt_fname">sstoreemailaddrforgiftcopy</td>
+                <td class="rt_ftype">emails</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Email To</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_storealias">
+                <td class="rt_fname">storealias</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">http://devbox6.corp.netsuite.com/</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_storeemail">
+                <td class="rt_fname">storeemail</td>
+                <td class="rt_ftype">email</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Default Web Store Email From Address</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_termsandconditionshtml">
+                <td class="rt_fname">termsandconditionshtml</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Terms and Conditions HTML</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_textgroup">
+                <td class="rt_fname">textgroup</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Text Group</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_titlefontsize">
+                <td class="rt_fname">titlefontsize</td>
+                <td class="rt_ftype">posinteger</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Title Font Size</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_upselldescription">
+                <td class="rt_fname">upselldescription</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Upsell</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_upsellitems">
+                <td class="rt_fname">upsellitems</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Items to Upsell</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_upsellitemslayout">
+                <td class="rt_fname">upsellitemslayout</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Default Upsell Items Layout</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_upsellminimumcorrelation">
+                <td class="rt_fname">upsellminimumcorrelation</td>
+                <td class="rt_ftype">percent</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Minimum Correlation</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_upsellminimumcount">
+                <td class="rt_fname">upsellminimumcount</td>
+                <td class="rt_ftype">integer</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Minimum Count</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_upsellminimumlift">
+                <td class="rt_fname">upsellminimumlift</td>
+                <td class="rt_ftype">percent</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Minimum Lift</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_urlformat">
+                <td class="rt_fname">urlformat</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Format</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_useurlfileextension">
+                <td class="rt_fname">useurlfileextension</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Use File Extension</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_websitehomepage">
+                <td class="rt_fname">websitehomepage</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Web Site Home Page</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_websitehomepagetype">
+                <td class="rt_fname">websitehomepagetype</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Web Site Home Page Type</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_websitelogo">
+                <td class="rt_fname">websitelogo</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Web Site Logo</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_websitelogoalign">
+                <td class="rt_fname">websitelogoalign</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Web Site Logo Alignment</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_websitelogolinkurl">
+                <td class="rt_fname">websitelogolinkurl</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Logo Link URL</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_websitescope">
+                <td class="rt_fname">websitescope</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Web Site Scope</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_websitetheme">
+                <td class="rt_fname">websitetheme</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Web Site Theme</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_webstoreadditembehavior">
+                <td class="rt_fname">webstoreadditembehavior</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">After shopper adds an item to the cart</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_webstoremetatags">
+                <td class="rt_fname">webstoremetatags</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Addition to &lt;head&gt;</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_wsdkcancelcarturl">
+                <td class="rt_fname">wsdkcancelcarturl</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Shopping cart page Continue Shopping link URL</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_wsdkcancelcheckouturl">
+                <td class="rt_fname">wsdkcancelcheckouturl</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Checkout page Cancel link URL</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_wsdkcancelloginurl">
+                <td class="rt_fname">wsdkcancelloginurl</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Login/registration page Cancel link URL</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_wsdkcompletecheckouturl">
+                <td class="rt_fname">wsdkcompletecheckouturl</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">URL to go to after checkout is complete</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_wsdkcompleteloginurl">
+                <td class="rt_fname">wsdkcompleteloginurl</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">URL to go to after login/registration is complete</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+    </table>
+
+    <H2>Sublists</H2>
+            <H4><span id="field_cartcolumn_">cartcolumn - Cart</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_cartcolumn_show">
+                        <td class="rt_sname">show</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Show</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_cartcolumn_width">
+                        <td class="rt_sname">width</td>
+                        <td class="rt_stype">float</td>
+                        <td class="rt_slabel">Width (%)</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_shoppingdomain_">shoppingdomain - Domain Names</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_shoppingdomain_domain">
+                        <td class="rt_sname">domain</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Domain Name</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_shoppingdomain_hostingroot">
+                        <td class="rt_sname">hostingroot</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">HTML Hosting Root</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_shoppingdomain_isprimary">
+                        <td class="rt_sname">isprimary</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Primary Web Site URL</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_shoppingdomain_notfoundpage">
+                        <td class="rt_sname">notfoundpage</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Not-Found Page</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_shoppingdomain_touchpoints">
+                        <td class="rt_sname">touchpoints</td>
+                        <td class="rt_stype">namevaluelist</td>
+                        <td class="rt_slabel">Touch Points</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_sitecurrency_">sitecurrency - Currency</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_sitecurrency_currency">
+                        <td class="rt_sname">currency</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_sitecurrency_isdefault">
+                        <td class="rt_sname">isdefault</td>
+                        <td class="rt_stype">radio</td>
+                        <td class="rt_slabel">Default</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_sitecurrency_isonline">
+                        <td class="rt_sname">isonline</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Online</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_sitecurrency_minimumorderamount">
+                        <td class="rt_sname">minimumorderamount</td>
+                        <td class="rt_stype">currency</td>
+                        <td class="rt_slabel">Minimum Order Amount</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_sitelanguage_">sitelanguage - Languages</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_sitelanguage_isdefault">
+                        <td class="rt_sname">isdefault</td>
+                        <td class="rt_stype">radio</td>
+                        <td class="rt_slabel">Default</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_sitelanguage_isonline">
+                        <td class="rt_sname">isonline</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Online</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_sitelanguage_locale">
+                        <td class="rt_sname">locale</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_siteregion_">siteregion - Subsidiaries</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_siteregion_ccprocessingprofile">
+                        <td class="rt_sname">ccprocessingprofile</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Credit Card Processing Profile</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_siteregion_displayname">
+                        <td class="rt_sname">displayname</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Display Name</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_siteregion_isdefault">
+                        <td class="rt_sname">isdefault</td>
+                        <td class="rt_stype">radio</td>
+                        <td class="rt_slabel">Default</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_siteregion_isonline">
+                        <td class="rt_sname">isonline</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Online</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_siteregion_paypalaccount">
+                        <td class="rt_sname">paypalaccount</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">PayPal Account</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_siteregion_subsidiary">
+                        <td class="rt_sname">subsidiary</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_storetab_">storetab - Tabs</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_storetab_tabdescription">
+                        <td class="rt_sname">tabdescription</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Tab Description</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_storetab_tabname">
+                        <td class="rt_sname">tabname</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Tab Name</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_storetab_tabtype">
+                        <td class="rt_sname">tabtype</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel">Tab Type</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+
+
+    <H2>Tabs</H2>
+    <table class="jtable">
+        <tr><th class="rt_tname">Name</th><th class="rt_tlabel">Label</th></tr>
+            <tr>
+                <td class="rt_tname">advanced</td>
+                <td class="rt_tlabel">Advanced</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">analytics</td>
+                <td class="rt_tlabel">Analytics</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">appearance</td>
+                <td class="rt_tlabel">Appearance</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">cart</td>
+                <td class="rt_tlabel">Cart</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">email</td>
+                <td class="rt_tlabel">Email</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">external</td>
+                <td class="rt_tlabel">External</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">general</td>
+                <td class="rt_tlabel">Setup</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">legacy</td>
+                <td class="rt_tlabel">Legacy</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">search</td>
+                <td class="rt_tlabel">Search</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">shopping</td>
+                <td class="rt_tlabel">Shopping</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">shoppingdomainstab</td>
+                <td class="rt_tlabel">Domains</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">upsell</td>
+                <td class="rt_tlabel">Upsell</td>
+            </tr>
+    </table>
+
+
+
+
+    <p>&nbsp;</p>
+</div>
+    <script>
+         $(function() {
+             wrapBodyDiv('script','contentPanel');
+         });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,3074 @@
+<html>
+<head>
+<link href="../../jquery-ui.css" rel="stylesheet">
+<link href="../../schema-browser.css" rel="stylesheet">
+<script src="../../javascript/jquery-1.10.2.min.js"></script>
+<script src="../../javascript/jquery-ui.min.js"></script>
+<script src="../../menudefs.js"></script>
+<script src="../../javascript/menubuilder.js"></script>
+
+<script>
+    (function( $ ){
+        //plugin buttonset vertical
+        $.fn.buttonsetv = function() {
+            $(':radio, :checkbox, :button', this).wrap('<div style="margin: 1px"/>');
+            $(this).buttonset();
+            $('label:first', this).removeClass('ui-corner-left').addClass('ui-corner-top');
+            $('label:last', this).removeClass('ui-corner-right').addClass('ui-corner-bottom');
+            mw = 0; // max witdh
+            $('label', this).each(function(index){
+                w = $(this).width();
+                if (w > mw) mw = w;
+            })
+            $('label', this).each(function(index){
+                $(this).width(mw);
+            })
+        };
+    })( jQuery );
+
+    function getURLParameter(name) {
+        return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+    }
+</script>
+
+<style>
+    .custom-combobox {
+        position: relative;
+        display: inline-block;
+    }
+    .custom-combobox-toggle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        margin-left: -1px;
+        padding: 0;
+        /* support: IE7 */
+        *height: 1.7em;
+        *top: 0.1em;
+    }
+    .custom-combobox-input {
+        margin: 0;
+        padding: 0.3em;
+    }
+</style>
+
+
+<script>
+    (function( $ ) {
+        $.widget( "custom.combobox_with_optgroup", {
+            _create: function() {
+                this.wrapper = $( "<span>" )
+                        .addClass( "custom-combobox" )
+                        .insertAfter( this.element );
+                this.element.hide();
+                this._createAutocomplete();
+                this._createShowAllButton();
+            },
+            _createAutocomplete: function() {
+                var selected = this.element.find( ":selected" ),
+                        value = selected.val() ? selected.text() : "";
+                this.input = $( "<input>" )
+                        .appendTo( this.wrapper )
+                        .val( value )
+                        .attr( "title", "" )
+                        .addClass( "custom-combobox-input ui-widget ui-widget-content ui-state-default ui-corner-left" )
+                        .autocomplete({
+                                          delay: 0,
+                                          minLength: 0,
+                                          source: $.proxy( this, "_source" )
+                                      })
+                        .tooltip({
+                                     tooltipClass: "ui-state-highlight"
+                                 })
+                        ;
+                this._on( this.input, {
+                    autocompleteselect: function( event, ui ) {
+                        ui.item.option.selected = true;
+                        window.location.href=ui.item.href;
+//                        this._trigger( "select", event, {
+//                            item: ui.item.option
+//                        });
+                    },
+                    autocompletechange: "_removeIfInvalid"
+                });
+
+                this.input.data("uiAutocomplete")._renderMenu = function(ul, items) {
+                    var self = this,
+                    currentCategory = "";
+                    var itemCounter=100;
+                    $.each(items, function(index, item) {
+                        itemCounter=itemCounter+1;
+                        if (item.category != currentCategory) {
+                            if (item.category) {
+                                ul.append("<li class='custom-autocomplete-category'>" + item.category + "</li>");
+                            }
+                            currentCategory = item.category;
+                        }
+                        self._renderItem= function( ul, item ) {
+                            return $( "<li>").attr("class",item.class)
+                                    .append( $( "<a>" ).attr("href",item.href).text( item.label ) )
+                                    .appendTo( ul );
+                        };
+                        self._renderItemData(ul, item);
+                    });
+                };
+            },
+
+            _createShowAllButton: function() {
+                var input = this.input,
+                        wasOpen = false;
+                $( "<a>" )
+                        .attr( "tabIndex", -1 )
+                        .attr( "title", "Show All" )
+                        .tooltip()
+                        .appendTo( this.wrapper )
+                        .button({
+                                   /* icons: {
+                                        primary: "ui-icon-triangle-1-s"
+                                    },*/
+                                    text: false
+                                })
+                        .removeClass( "ui-corner-all" )
+                        .addClass( "custom-combobox-toggle ui-corner-right" )
+                        .mousedown(function() {
+                                       wasOpen = input.autocomplete( "widget" ).is( ":visible" );
+                                   })
+                        .click(function() {
+                                   input.focus();
+
+                                   if ( wasOpen ) {
+                                       return;
+                                   }
+
+                                   input.autocomplete( "search", "" );
+                               });
+            },
+            _source: function( request, response ) {
+                var matcher = new RegExp( $.ui.autocomplete.escapeRegex(request.term), "i" );
+                response( this.element.find( "option" ).map(function() {
+                    var text = $( this ).text();
+                    if ( this.value && ( !request.term || matcher.test(text) ) )
+                        return {
+                            label: text,
+                            value: text,
+                            option: this,
+                            class: $(this).attr("class"),
+                            href: $(this).attr("href"),
+                            category: $(this).closest("optgroup").attr("label")
+                        };
+                }) );
+            },
+            _removeIfInvalid: function( event, ui ) {
+
+                if ( ui.item ) {
+                    return;
+                }
+
+                var value = this.input.val(),
+                        valueLowerCase = value.toLowerCase(),
+                        valid = false;
+                this.element.find( "option" ).each(function() {
+                    if ( $( this ).text().toLowerCase() === valueLowerCase ) {
+                        this.selected = valid = true;
+                        return false;
+                    }
+                });
+
+                if ( valid ) {
+                    return;
+                }
+
+                this.input
+                        .val( "" )
+                        .attr( "title", value + " not found" )
+                        .tooltip( "open" );
+                this.element.val( "" );
+                this._delay(function() {
+                    this.input.tooltip( "close" ).attr( "title", "" );
+                }, 2500 );
+                this.input.data( "ui-autocomplete" ).term = "";
+            },
+            _destroy: function() {
+                this.wrapper.remove();
+                this.element.show();
+            },
+            getInput: function(){
+                return this.input;
+            }
+        });
+    })( jQuery );
+</script>
+
+</head>
+
+<body>
+
+     <div id='header'></div>
+     <script>
+         $(function() {
+             $('#header').html(createHeader('script','record__markupitem','../..'));
+         });
+     </script>
+
+
+    <div id='leftpanel'></div>
+    <script>
+        $(function() {
+            $('#leftpanel').html(createLeftPanel('script','record__markupitem','../..'));
+        });
+    </script>
+
+
+<script type="text/javascript">
+    $().ready(function(){
+        $(".jtable th").each(function(){
+
+            $(this).addClass("ui-state-default");
+
+        });
+        $(".jtable td").each(function(){
+
+            $(this).addClass("ui-widget-content");
+
+        });
+
+    });
+</script>
+
+
+<div id="contentPanel">
+
+<H1>Markup Item</H1>
+<H3>Internal ID: markupitem</H3>
+
+
+
+
+
+    <H2>Fields</H2>
+    <table class="jtable">
+        <tr><th class="rt_fname">Internal ID</th><th class="rt_ftype">Type</th><th class="rt_fdle">nlapiSubmitField</th><th class="rt_flabel">Label</th><th class="rt_freq">Required</th><th class="rt_fhelp">Help</th></tr>
+            <tr id="field_account">
+                <td class="rt_fname">account</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp">In order to retrieve a list of available values for this field, use the GetSelectValue operation. For more information, see getSelectValue of the Platform Guide.</td>
+            </tr>
+            <tr id="field_availabletopartners">
+                <td class="rt_fname">availabletopartners</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Available to Adv. Partners</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_class">
+                <td class="rt_fname">class</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Class</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">References a value from a user defined list at Setup &gt; Company &gt; Classifications &gt; Classes.
+This field is required when the Make Classes Mandatory preference is enabled at Setup &gt; Accounting &gt; Accounting Preferences.</td>
+            </tr>
+            <tr id="field_createddate">
+                <td class="rt_fname">createddate</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Date Created</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_customform">
+                <td class="rt_fname">customform</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Custom Form</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_department">
+                <td class="rt_fname">department</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Department</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Set a department to associate with this item.
+For details on existing department records, in the UI go to Setup &gt; Company &gt; Departments.</td>
+            </tr>
+            <tr id="field_description">
+                <td class="rt_fname">description</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Description</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Enter a description for this item. This description will appear in the Description column of sales forms.</td>
+            </tr>
+            <tr id="field_displayname">
+                <td class="rt_fname">displayname</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Display Name/Code</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_externalid">
+                <td class="rt_fname">externalid</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">ExternalId</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_includechildren">
+                <td class="rt_fname">includechildren</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Include Children</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_isinactive">
+                <td class="rt_fname">isinactive</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Inactive</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_ispretax">
+                <td class="rt_fname">ispretax</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Apply Before Sales Tax</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_issueproduct">
+                <td class="rt_fname">issueproduct</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Product</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_itemid">
+                <td class="rt_fname">itemid</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Item Name/Number</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_itemtype">
+                <td class="rt_fname">itemtype</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_lastmodifieddate">
+                <td class="rt_fname">lastmodifieddate</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Last Modified</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_location">
+                <td class="rt_fname">location</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Location</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_nonposting">
+                <td class="rt_fname">nonposting</td>
+                <td class="rt_ftype">radio</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Non-posting</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_parent">
+                <td class="rt_fname">parent</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Subitem of</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">References an existing item record. Only required if the item is a child of another item.
+In order to retrieve a list of available values for this field, use the GetSelectValue operation.</td>
+            </tr>
+            <tr id="field_rate">
+                <td class="rt_fname">rate</td>
+                <td class="rt_ftype">rate</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Rate</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp">Defines the rate for this item. If a value is entered followed by the percentage sign, the discount is interpreted as a percentage discount (i.e.  -.10% sets a ten percent discount for the item). If a value without the percentage sign is entered, the rate is interpreted as a flat dollar value.</td>
+            </tr>
+            <tr id="field_subsidiary">
+                <td class="rt_fname">subsidiary</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Subsidiary</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_taxschedule">
+                <td class="rt_fname">taxschedule</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Tax Schedule</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_upccode">
+                <td class="rt_fname">upccode</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">UPC Code</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_vendorname">
+                <td class="rt_fname">vendorname</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Vendor Name/Code</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+    </table>
+
+
+    <H2>Tabs</H2>
+    <table class="jtable">
+        <tr><th class="rt_tname">Name</th><th class="rt_tlabel">Label</th></tr>
+            <tr>
+                <td class="rt_tname">basic</td>
+                <td class="rt_tlabel">Basic</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">custom</td>
+                <td class="rt_tlabel">Custom</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">history</td>
+                <td class="rt_tlabel">History</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">workflow</td>
+                <td class="rt_tlabel">Workflow</td>
+            </tr>
+    </table>
+
+    <H2>Search Joins</H2>
+    <table class="jtable">
+        <tr><th class="rt_jid">Join ID</th><th class="rt_jlabel">Join Description</th><th class="rt_jname">Actual Join Name</th></tr>
+            <tr>
+                <td class="rt_jid">effectiverevision</td>
+                <td class="rt_jlabel">Effective Revision</td>
+                <td class="rt_jname">Item Revision</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">inventorydetail</td>
+                <td class="rt_jlabel">Inventory Detail</td>
+                <td class="rt_jname">Inventory Detail</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">inventorylocation</td>
+                <td class="rt_jlabel">Inventory Location</td>
+                <td class="rt_jname">Location</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">inventorynumber</td>
+                <td class="rt_jlabel">Inventory Number</td>
+                <td class="rt_jname">Inventory Numbers</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">obsoleterevision</td>
+                <td class="rt_jlabel">Obsolete Revision</td>
+                <td class="rt_jname">Item Revision</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">preferredlocation</td>
+                <td class="rt_jlabel">Preferred Location</td>
+                <td class="rt_jname">Location</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">preferredvendor</td>
+                <td class="rt_jlabel">Preferred Vendor</td>
+                <td class="rt_jname">Vendor</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">shopper</td>
+                <td class="rt_jlabel">Shopper</td>
+                <td class="rt_jname">Customer</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">vendor</td>
+                <td class="rt_jlabel">Vendor</td>
+                <td class="rt_jname">Vendor</td>
+            </tr>
+    </table>
+
+    <H2>Search Filters</H2>
+    <table class="jtable">
+        <tr><th class="rt_iname">Internal ID</th><th class="rt_itype">Type</th><th class="rt_ilabel">Label</th></tr>
+            <tr>
+                <td class="rt_iname">account</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Account</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">accountingbook</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Accounting Book</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">accountingbookamortization</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Accounting Book Amortization Schedule</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">accountingbookrevrecschedule</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Accounting Book Rev. Rec. Schedule</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">alternatedemandsourceitem</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Alternate Source Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">atpleadtime</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">ATP Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">atpmethod</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Default ATP Method</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">autoleadtime</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Auto-Calculate Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">autopreferredstocklevel</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Auto-Calculate Preferred Stock Level</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">autoreorderpoint</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Auto-Calculate Reorder Point</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">availabletopartners</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Available to Partners</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">averagecost</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Average Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">binnumber</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Bin Number</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">binonhandavail</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Bin On Hand Available</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">binonhandcount</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Bin On Hand Count</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">buildentireassembly</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Build Sub-Assemblies</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">buildtime</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Work Order Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">buyitnowprice</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">eBay Buy It Now Price</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">caption</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Store Display Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">category</td>
+                <td class="rt_itype">multiselect</td>
+                <td class="rt_ilabel">Category</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">class</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Class</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">component</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Component Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">componentof</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Component Of</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">copydescription</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Copy SO Descr.</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">correlateditem</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Correlated Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">correlateditemcorrelation</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Correlated Item Correlation</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">correlateditemcount</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Correlated Item Count</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">correlateditemlift</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Correlated Item Lift</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">correlateditempurchaserate</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Correlated Item PurchaseRate</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">cost</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Purchase Price</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">costaccountingstatus</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Cost Accounting Status</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">costcategory</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Cost Category</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">costestimate</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Item Defined Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">costestimatetype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Cost Estimate Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">costingmethod</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Costing Method</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">countryofmanufacture</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Manufacturer Country</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">created</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Date Created</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">createjob</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Create Job</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">currentstandardcost</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Current Standard Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">currentstdcosteffectivedate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Current Standard Cost Effective Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">dateviewed</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Date Viewed</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">daysbeforeexpiration</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Days Before Expiration</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">defaultreturncost</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Default Return Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">demandmodifier</td>
+                <td class="rt_itype">percent</td>
+                <td class="rt_ilabel">Estimated Demand Change</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">demandsource</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Demand Source</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">department</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Department</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">displayinebaystore</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">eBay Store</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">displayname</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Display Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">dontshowprice</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Don't Show Price</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">ebayitemdescription</td>
+                <td class="rt_itype">clobtext</td>
+                <td class="rt_ilabel">eBay Description</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">ebayitemsubtitle</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">eBay Subtitle</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">ebayitemtitle</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">eBay Title</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">ebayrelistingoption</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">eBay Relisting Option</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">effectivebomcontrol</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Effective BOM Control</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">effectivedate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Effective Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">effectiverevision</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Effective Revision</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">endauctionswhenoutofstock</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">eBay End Auctions When Out of Stock</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">excludefromsitemap</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Exclude From Sitemap</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">externalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">External ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">externalidstring</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">External ID (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">featureddescription</td>
+                <td class="rt_itype">clobtext</td>
+                <td class="rt_ilabel">Featured Description</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">feeddescription</td>
+                <td class="rt_itype">clobtext</td>
+                <td class="rt_ilabel">Feed Description</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">feedname</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Feed Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">fixedlotsize</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Fixed Lot Size</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formuladate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulanumeric</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulatext</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">froogleproductfeed</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Google Base Product Feed</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">fxcost</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Purchase Price (Foreign Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">giftcertauthcode</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Gift Certificate Code</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">giftcertemail</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Gift Certificate To (Email)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">giftcertexpdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Gift Certificate Expiration Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">giftcertfrom</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Gift Certificate From (Name)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">giftcertmsg</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Gift Certificate Message</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">giftcertorigamt</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Gift Certificate Original Amount</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">giftcertrecipient</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Gift Certificate To (Name)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">imageurl</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Image URL</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalidnumber</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Internal ID (Number)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">inventorylocation</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Inventory Location</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">invtclassification</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Inventory Classification</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">invtcountinterval</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Inventory Count Interval</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isavailable</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Is Available?</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isdropshipitem</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Drop Ship Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isfulfillable</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Can be Fulfilled</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isgcocompliant</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Google Checkout Compliant</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isinactive</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Inactive</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">islotitem</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Is Lot Numbered Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isonline</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Display in Web Site</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">ispreferredvendor</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Vendor is Preferred</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isserialitem</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Is Serialized Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isspecialorderitem</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Special Order Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isspecialworkorderitem</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Special Work Order Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">issueproduct</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Product</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">istaxable</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Taxable</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isvsoebundle</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Is VSOE Bundle?</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">iswip</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">WIP</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">itemid</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">itemurl</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Item URL</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lastinvtcountdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Last Inventory Count Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lastmodifieddate</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Last Modified</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lastpurchaseprice</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Last Purchase Price</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lastquantityavailablechange</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Last Quantity Available Change</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">leadtime</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">listingduration</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">eBay Duration</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">location</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Location</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationatpleadtime</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Location ATP Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationaveragecost</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Location Average Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationbuildtime</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Location Work Order Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationcost</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Location Standard Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationcostaccountingstatus</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Location Cost Accounting Status</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationdefaultreturncost</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Location Default Return Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationdemandsource</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Location Demand Source</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationfixedlotsize</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Location Fixed Lot Size</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationinvtclassification</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Location Inventory Classification</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationinvtcountinterval</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Location Inventory Count Interval</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationlastinvtcountdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Location Last Inventory Count Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationleadtime</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Location Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationnextinvtcountdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Location Next Inventory Count Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationpreferredstocklevel</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Location Preferred Stock Level</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationquantityavailable</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Location Available</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationquantitybackordered</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Location Back Ordered</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationquantitycommitted</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Location Committed</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationquantityintransit</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Location In Transit</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationquantityonhand</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Location On Hand</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationquantityonorder</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Location On Order</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationreorderpoint</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Location Reorder Point</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationsafetystocklevel</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Location Safety Stock Level</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationsupplylotsizingmethod</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Location Supply Lot Sizing Method</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationsupplytype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Location Supply Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locationtotalvalue</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Location Total Value</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">manufacturer</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Manufacturer</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">manufactureraddr1</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Manufacturer Address</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">manufacturercity</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Manufacturer City</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">manufacturerstate</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Manufacturer State</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">manufacturertariff</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Manufacturer Tariff</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">manufacturertaxid</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Manufacturer Tax Id</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">manufacturerzip</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Manufacturer Zip</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">matchbilltoreceipt</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Match Bill To Receipt</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">matrix</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Matrix Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">matrixchild</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Matrix Child Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">metataghtml</td>
+                <td class="rt_itype">clobtext</td>
+                <td class="rt_ilabel">Meta Tag Html</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">minimumquantity</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Minimum Quantity</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">mpn</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">MPN</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">multmanufactureaddr</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Multiple Manufacture Addresses</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">nextagcategory</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">NexTag Category</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">nextagproductfeed</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">NexTag Product Feed</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">nextinvtcountdate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Next Inventory Count Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">numactivelistings</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">eBay Active Listings</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">numberalloweddownloads</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Number of Allowed Downloads</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">numcurrentlylisted</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">eBay Quantity Currently Listed</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">obsoletedate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Obsolete Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">obsoleterevision</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Obsolete Revision</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">offersupport</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Offer Support</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">onlinecustomerprice</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Online Customer Price</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">onspecial</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">On Special</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">othervendor</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Vendor</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">outofstockbehavior</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Out Of Stock Behavior</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">overallquantitypricingtype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Overall Qty. Pricing Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">pagetitle</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Page Title</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">parent</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Sub-Item Of</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">preferencecriterion</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Preference Criterion</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">preferredbin</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Preferred Bin</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">preferredlocation</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Preferred Location</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">preferredstocklevel</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Preferred Stock Level</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">preferredstockleveldays</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Preferred Stock Level Days</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">price</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Sales Price</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">pricesincludetax</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Prices Include Tax</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">pricinggroup</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Pricing Group</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">primarycategory</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">eBay Category Id</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">purchaseunit</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Purchase Unit</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">quantityavailable</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Available</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">quantitybackordered</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Back Ordered</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">quantitycommitted</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Committed</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">quantityonhand</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">On Hand</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">quantityonorder</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">On Order</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">quantitypricingschedule</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Qty. Pricing Schedule</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">reordermultiple</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Reorder Multiple</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">reorderpoint</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Reorder Point</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">reserveprice</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">eBay Reserve Price</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">revrecschedule</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Rev. Rec. Schedule</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">safetystocklevel</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Safety Stock Level</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">safetystockleveldays</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Safety Stock Level Days</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">salesdescription</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Description</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">saleunit</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Sale Unit</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">schedulebcode</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Schedule B Code</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">schedulebnumber</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Schedule B Number</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">schedulebquantity</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Schedule B Quantity</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">searchkeywords</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Search Keywords</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">seasonaldemand</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Seasonal Demand</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">sellonebay</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">eBay Auction</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">serialnumber</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Serial/Lot Number</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">serialnumberlocation</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Serial/Lot Number Location</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">shipindividually</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Ships Individually</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">shippackage</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Shipping Package</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">shippingrate</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Shipping Rate</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">shoppingdotcomcategory</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Shopping Category</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">shoppingproductfeed</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Shopping Product Feed</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">shopzillacategoryid</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Shopzilla Category Id</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">shopzillaproductfeed</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Shopzilla Product Feed</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">sitemappriority</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Sitemap Priority</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">softdescriptor</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Soft Descriptor</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">startingprice</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">eBay Starting Price</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">stockdescription</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Stock Description</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">stockunit</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Stock Unit</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">storedescription</td>
+                <td class="rt_itype">clobtext</td>
+                <td class="rt_ilabel">Store Description</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">subsidiary</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Subsidiary</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">subtype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Sub Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">supplylotsizingmethod</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Supply Lot Sizing Method</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">supplyreplenishmentmethod</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Replenishment Method</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">supplytype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Supply Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">taxcode</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Tax Code</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">taxschedule</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Tax Schedule</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">thumbnailurl</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Thumbnail URL</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">totalvalue</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Total Value</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">tracklandedcost</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Track Landed Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">transferprice</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Transfer Price</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">type</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">unitstype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Units Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">upccode</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">UPC Code</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">urlcomponent</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">URL Component</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">usebins</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Use Bins</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">usemarginalrates</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Use Marginal Rates</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">vendor</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Preferred Vendor</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">vendorcode</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Vendor Code</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">vendorcost</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Vendor Price</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">vendorcostentered</td>
+                <td class="rt_itype">currency</td>
+                <td class="rt_ilabel">Vendor Price (Entered)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">vendorname</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Vendor Name</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">vendorpricecurrency</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Vendor Price Currency</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">vsoedeferral</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Deferral</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">vsoedelivered</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Default as Delivered</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">vsoepermitdiscount</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Permit Discount</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">vsoeprice</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">VSOE Price</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">website</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Web Site</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">weight</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Weight</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">yahooproductfeed</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Yahoo Shopping Product Feed</td>
+            </tr>
+    </table>
+
+    <H2>Search Columns</H2>
+    <table class="jtable">
+        <tr><th class="rt_cname">Internal ID</th><th class="rt_ctype">Type</th><th class="rt_clabel">Label</th></tr>
+            <tr>
+                <td class="rt_cname">accountingbook</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Accounting Book</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">accountingbookamortization</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Accounting Book Amortization Schedule</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">accountingbookrevrecschedule</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Accounting Book Rev. Rec. Schedule</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">alternatedemandsourceitem</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Alternate Source Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">assetaccount</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Asset Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">atpleadtime</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">ATP Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">atpmethod</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Default ATP Method</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">autoleadtime</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Auto Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">autopreferredstocklevel</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Auto Stock Level</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">autoreorderpoint</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Auto Reorder Point</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">availabletopartners</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Available to Partners</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">averagecost</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">Average Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">baseprice</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">Base Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billexchratevarianceacct</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Bill Exchange Rate Variance Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billpricevarianceacct</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Bill Price Variance Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">billqtyvarianceacct</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Bill Quantity Variance Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">binnumber</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Bin Number</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">binonhandavail</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Bin On Hand Available</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">binonhandcount</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Bin On Hand Count</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">buildentireassembly</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Build Sub-Assemblies</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">buildtime</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Work Order Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">buyitnowprice</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">eBay Buy It Now Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">category</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Category</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">categorynohierarchy</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Category (no hierarchy)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">categorypreferred</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Category (preferred)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">class</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Class</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">classnohierarchy</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Class (no hierarchy)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">copydescription</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Copy SO Descr.</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">correlateditem</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Correlated Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">correlateditemcorrelation</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Correlated Item Correlation</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">correlateditemcount</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Correlated Item Count</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">correlateditemlift</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Correlated Item Lift</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">correlateditempurchaserate</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Correlated Item Purchase Rate</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">cost</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">Purchase Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">costaccountingstatus</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Cost Accounting Status</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">costcategory</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Cost Category</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">costestimate</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">Item Defined Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">costestimatetype</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Cost Estimate Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">costingmethod</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Costing Method</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">countryofmanufacture</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Manufacturer Country</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">created</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Date Created</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">createjob</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Create Job</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">currentstandardcost</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">Current Standard Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">currentstdcosteffectivedate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Current Standard Cost Effective Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">custreturnvarianceaccount</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Customer Return Variance Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">dateviewed</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Date Viewed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">daysbeforeexpiration</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Days Before Expiration</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">defaultreturncost</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">Default Return Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">deferredexpenseaccount</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Deferred Expense Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">deferredrevenueaccount</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Deferred Revenue Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">demandmodifier</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">Expected Demand Change</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">demandsource</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Demand Source</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">department</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Department</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">departmentnohierarchy</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Department (no hierarchy)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">displayinebaystore</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">eBay Store</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">displayname</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Display Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">dontshowprice</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Don't Show Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">ebayitemdescription</td>
+                <td class="rt_ctype">clobtext</td>
+                <td class="rt_clabel">eBay Description</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">ebayitemsubtitle</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">eBay Subtitle</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">ebayitemtitle</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">eBay Title</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">ebayrelistingoption</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">eBay Relisting Option</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">effectivebomcontrol</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Effective BOM Control</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">effectivedate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Effective Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">effectiverevision</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Effective Revision</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">endauctionswhenoutofstock</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">eBay End Auctions When Out of Stock</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">excludefromsitemap</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Exclude from Sitemap</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">expenseaccount</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Expense/COGS Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">externalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">External ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">featureddescription</td>
+                <td class="rt_ctype">clobtext</td>
+                <td class="rt_clabel">Featured Description</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">feeddescription</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Feed Description</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">feedname</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Feed Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">fixedlotsize</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Fixed Lot Size</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulacurrency</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Formula (Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladatetime</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Formula (Date/Time)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulanumeric</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulapercent</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">Formula (Percent)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulatext</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">froogleproductfeed</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Google Base Product Feed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">fxcost</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">Purchase Price (Foreign Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">gainlossaccount</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Gain/Loss Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">giftcertauthcode</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Gift Certificate Auth Code</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">giftcertemail</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Gift Certificate To (Email)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">giftcertexpirationdate</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Gift Certificate Exp Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">giftcertfrom</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Gift Certificate From (Name)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">giftcertmessage</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Gift Certificate Message</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">giftcertoriginalamount</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Gift Certificate Orig Amount</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">giftcertrecipient</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Gift Certificate To (Name)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">hits</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel"># Times Viewed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">imageurl</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Image URL</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">incomeaccount</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Income Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">internalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">inventorylocation</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Inventory Location</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">invtclassification</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Inventory Classification</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">invtcountinterval</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Inventory Count Interval</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isavailable</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Is Available?</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isdropshipitem</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Drop Ship Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isfulfillable</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Can be Fulfilled</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isgcocompliant</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Google Checkout Compliant</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isinactive</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Inactive</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">islotitem</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Is Lot Numbered Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isonline</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Display in Web Site</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isserialitem</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Is Serialized Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isspecialorderitem</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Special Order Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isspecialworkorderitem</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Special Work Order Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">issueproduct</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Product</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">istaxable</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Taxable</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isvsoebundle</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Is VSOE Bundle?</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">iswip</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">WIP</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">itemid</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">itemurl</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Item URL</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastinvtcountdate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Last Inventory Count Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastpurchaseprice</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Last Purchase Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastquantityavailablechange</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Last Quantity Available Change</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastviewed</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Last Viewed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">leadtime</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">liabilityaccount</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Liability Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">listingduration</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">eBay Duration</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">location</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Location</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationatpleadtime</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location ATP Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationaveragecost</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">Location Average Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationbinquantityavailable</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location Bin Available</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationbuildtime</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location Work Order Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationcost</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Location Standard Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationcostaccountingstatus</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Location Cost Accounting Status</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationdefaultreturncost</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">Location Default Return Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationdemandsource</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Location Demand Source</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationfixedlotsize</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location Fixed Lot Size</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationinvtclassification</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Location Inventory Classification</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationinvtcountinterval</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Location Inventory Count Interval</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationlastinvtcountdate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Location Last Inventory Count Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationleadtime</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Location Lead Time</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationnextinvtcountdate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Location Next Inventory Count Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationnohierarchy</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Location (no hierarchy)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationpreferredstocklevel</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location Preferred Stock Level</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationquantityavailable</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location Available</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationquantitybackordered</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location Back Ordered</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationquantitycommitted</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location Committed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationquantityintransit</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location In Transit</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationquantityonhand</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location On Hand</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationquantityonorder</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location On Order</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationreorderpoint</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location Reorder Point</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationsafetystocklevel</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Location Safety Stock Level</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationsupplylotsizingmethod</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Location Supply Lot Sizing Method</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationsupplytype</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Location Supply Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locationtotalvalue</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">Location Total Value</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">manufacturer</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Manufacturer</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">manufactureraddr1</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Manufacturer Address</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">manufacturercity</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Manufacturer City</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">manufacturerstate</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Manufacturer State</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">manufacturertariff</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Manufacturer Tariff</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">manufacturertaxid</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Manufacturer Tax Id</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">manufacturerzip</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Manufacturer Zip</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">matchbilltoreceipt</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Match Bill To Receipt</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">memberitem</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Member Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">memberquantity</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Member Quantity</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">metataghtml</td>
+                <td class="rt_ctype">clobtext</td>
+                <td class="rt_clabel">Meta Tag Html</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">minimumquantity</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Minimum Quantity</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">modified</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Last Modified</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">mpn</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">MPN</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">multmanufactureaddr</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Multiple Manufacture Addresses</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">nextagcategory</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">NexTag Category</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">nextagproductfeed</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">NexTag Product Feed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">nextinvtcountdate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Next Inventory Count Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">nopricemessage</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">No Price Message</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">numactivelistings</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">eBay Active Listings</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">numberalloweddownloads</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Number of Allowed Downloads</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">numcurrentlylisted</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">eBay Quantity Currently Listed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">obsoletedate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Obsolete Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">obsoleterevision</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Obsolete Revision</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">offersupport</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Offer Support</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">onlinecustomerprice</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Online Customer Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">onlineprice</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Online Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">onspecial</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">On Special</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">otherprices</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Other Prices</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">othervendor</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Vendor</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">outofstockbehavior</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Out Of Stock Behavior</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">outofstockmessage</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Out Of Stock Message</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">overallquantitypricingtype</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Overall Qty. Pricing Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">pagetitle</td>
+                <td class="rt_ctype">textarea</td>
+                <td class="rt_clabel">Page Title</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">parent</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Parent</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">preferencecriterion</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Preference Criterion</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">preferredbin</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Preferred Bin</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">preferredlocation</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Preferred Location</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">preferredstocklevel</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Preferred Stock Level</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">preferredstockleveldays</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Days Supply</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">pricesincludetax</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Prices Include Tax</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">pricinggroup</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Pricing Group</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">primarycategory</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">eBay Category Id</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">prodpricevarianceacct</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Production Price Variance Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">prodqtyvarianceacct</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Production Quantity Variance Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">purchasedescription</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Purchase Description</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">purchasepricevarianceacct</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Purchase Price Variance Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">purchaseunit</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Purchase Unit</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">quantityavailable</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Available</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">quantitybackordered</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Back Ordered</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">quantitycommitted</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Committed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">quantityonhand</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">On Hand</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">quantityonorder</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">On Order</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">quantitypricingschedule</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Quantity Pricing Schedule</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">reordermultiple</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Reorder Multiple</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">reorderpoint</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Reorder Point</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">reserveprice</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">eBay Reserve Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">revrecschedule</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Rev. Rec. Schedule</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">safetystocklevel</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Safety Stock Level</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">safetystockleveldays</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Safety Stock Days</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">salesdescription</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Description</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">salestaxcode</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Tax Code</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">saleunit</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Sale Unit</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">schedulebcode</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Schedule B Code</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">schedulebnumber</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Schedule B Number</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">schedulebquantity</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Schedule B Quantity</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">scrapacct</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Scrap Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">searchkeywords</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Search Keywords</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">seasonaldemand</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Seasonal Demand</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">sellonebay</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">eBay Auction</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">serialnumber</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Serial/Lot Number</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">serialnumberlocation</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Serial/Lot Number Location</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shipindividually</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Ships Individually</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shippackage</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Shipping Package</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shippingrate</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Shipping Rate</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shoppingdotcomcategory</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Shopping.com Category</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shoppingproductfeed</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Shopping.com Product Feed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shopzillacategoryid</td>
+                <td class="rt_ctype">integer</td>
+                <td class="rt_clabel">Shopzilla Category Id</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">shopzillaproductfeed</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Shopzilla Product Feed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">sitemappriority</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Sitemap Priority</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">softdescriptor</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Soft Descriptor</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">startingprice</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">eBay Starting Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">stockdescription</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Stock Description</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">stockunit</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Stock Unit</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">storedescription</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Store Description</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">storedetaileddescription</td>
+                <td class="rt_ctype">clobtext</td>
+                <td class="rt_clabel">Detailed Description</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">storedisplayimage</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Store Display Image</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">storedisplayname</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Store Display Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">storedisplaythumbnail</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Store Display Thumbnail</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">subsidiary</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Subsidiary</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">subsidiarynohierarchy</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Subsidiary (no hierarchy)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">subtype</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">SubType</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">supplylotsizingmethod</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Supply Lot Sizing Method</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">supplyreplenishmentmethod</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Replenishment Method</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">supplytype</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Supply Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">taxschedule</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Tax Schedule</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">thumbnailurl</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Thumbnail URL</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">totalvalue</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">Total Value</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">tracklandedcost</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Track Landed Cost</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">transferprice</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">Transfer Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">type</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">unbuildvarianceaccount</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Unbuild Variance Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">unitstype</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Units Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">upccode</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">UPC Code</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">urlcomponent</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">URL Component</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">usebins</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Use Bins</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">usemarginalrates</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Use Marginal Rates</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vendor</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Preferred Vendor</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vendorcode</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Vendor Code</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vendorcost</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Vendor Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vendorcostentered</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Vendor Price (Entered)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vendorname</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Vendor Name</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vendorpricecurrency</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Vendor Price Currency</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vendorschedule</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Vendor Schedule</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vendreturnvarianceaccount</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Vendor Return Variance Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vsoedeferral</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Deferral</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vsoedelivered</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Default as Delivered</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vsoepermitdiscount</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Permit Discount</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">vsoeprice</td>
+                <td class="rt_ctype">currency2</td>
+                <td class="rt_clabel">VSOE Price</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">website</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Web Site</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">weight</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Weight</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">weightunit</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Weight Units</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">wipacct</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">WIP Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">wipvarianceacct</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">WIP Cost Variance Account</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">yahooproductfeed</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Yahoo Shopping Product Feed</td>
+            </tr>
+    </table>
+
+    <p>&nbsp;</p>
+</div>
+    <script>
+         $(function() {
+             wrapBodyDiv('script','contentPanel');
+         });
+    </script>
+
+</body>
+</html>

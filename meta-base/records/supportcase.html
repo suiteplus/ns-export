@@ -1,0 +1,1264 @@
+<html>
+<head>
+<link href="../../jquery-ui.css" rel="stylesheet">
+<link href="../../schema-browser.css" rel="stylesheet">
+<script src="../../javascript/jquery-1.10.2.min.js"></script>
+<script src="../../javascript/jquery-ui.min.js"></script>
+<script src="../../menudefs.js"></script>
+<script src="../../javascript/menubuilder.js"></script>
+
+<script>
+    (function( $ ){
+        //plugin buttonset vertical
+        $.fn.buttonsetv = function() {
+            $(':radio, :checkbox, :button', this).wrap('<div style="margin: 1px"/>');
+            $(this).buttonset();
+            $('label:first', this).removeClass('ui-corner-left').addClass('ui-corner-top');
+            $('label:last', this).removeClass('ui-corner-right').addClass('ui-corner-bottom');
+            mw = 0; // max witdh
+            $('label', this).each(function(index){
+                w = $(this).width();
+                if (w > mw) mw = w;
+            })
+            $('label', this).each(function(index){
+                $(this).width(mw);
+            })
+        };
+    })( jQuery );
+
+    function getURLParameter(name) {
+        return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+    }
+</script>
+
+<style>
+    .custom-combobox {
+        position: relative;
+        display: inline-block;
+    }
+    .custom-combobox-toggle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        margin-left: -1px;
+        padding: 0;
+        /* support: IE7 */
+        *height: 1.7em;
+        *top: 0.1em;
+    }
+    .custom-combobox-input {
+        margin: 0;
+        padding: 0.3em;
+    }
+</style>
+
+
+<script>
+    (function( $ ) {
+        $.widget( "custom.combobox_with_optgroup", {
+            _create: function() {
+                this.wrapper = $( "<span>" )
+                        .addClass( "custom-combobox" )
+                        .insertAfter( this.element );
+                this.element.hide();
+                this._createAutocomplete();
+                this._createShowAllButton();
+            },
+            _createAutocomplete: function() {
+                var selected = this.element.find( ":selected" ),
+                        value = selected.val() ? selected.text() : "";
+                this.input = $( "<input>" )
+                        .appendTo( this.wrapper )
+                        .val( value )
+                        .attr( "title", "" )
+                        .addClass( "custom-combobox-input ui-widget ui-widget-content ui-state-default ui-corner-left" )
+                        .autocomplete({
+                                          delay: 0,
+                                          minLength: 0,
+                                          source: $.proxy( this, "_source" )
+                                      })
+                        .tooltip({
+                                     tooltipClass: "ui-state-highlight"
+                                 })
+                        ;
+                this._on( this.input, {
+                    autocompleteselect: function( event, ui ) {
+                        ui.item.option.selected = true;
+                        window.location.href=ui.item.href;
+//                        this._trigger( "select", event, {
+//                            item: ui.item.option
+//                        });
+                    },
+                    autocompletechange: "_removeIfInvalid"
+                });
+
+                this.input.data("uiAutocomplete")._renderMenu = function(ul, items) {
+                    var self = this,
+                    currentCategory = "";
+                    var itemCounter=100;
+                    $.each(items, function(index, item) {
+                        itemCounter=itemCounter+1;
+                        if (item.category != currentCategory) {
+                            if (item.category) {
+                                ul.append("<li class='custom-autocomplete-category'>" + item.category + "</li>");
+                            }
+                            currentCategory = item.category;
+                        }
+                        self._renderItem= function( ul, item ) {
+                            return $( "<li>").attr("class",item.class)
+                                    .append( $( "<a>" ).attr("href",item.href).text( item.label ) )
+                                    .appendTo( ul );
+                        };
+                        self._renderItemData(ul, item);
+                    });
+                };
+            },
+
+            _createShowAllButton: function() {
+                var input = this.input,
+                        wasOpen = false;
+                $( "<a>" )
+                        .attr( "tabIndex", -1 )
+                        .attr( "title", "Show All" )
+                        .tooltip()
+                        .appendTo( this.wrapper )
+                        .button({
+                                   /* icons: {
+                                        primary: "ui-icon-triangle-1-s"
+                                    },*/
+                                    text: false
+                                })
+                        .removeClass( "ui-corner-all" )
+                        .addClass( "custom-combobox-toggle ui-corner-right" )
+                        .mousedown(function() {
+                                       wasOpen = input.autocomplete( "widget" ).is( ":visible" );
+                                   })
+                        .click(function() {
+                                   input.focus();
+
+                                   if ( wasOpen ) {
+                                       return;
+                                   }
+
+                                   input.autocomplete( "search", "" );
+                               });
+            },
+            _source: function( request, response ) {
+                var matcher = new RegExp( $.ui.autocomplete.escapeRegex(request.term), "i" );
+                response( this.element.find( "option" ).map(function() {
+                    var text = $( this ).text();
+                    if ( this.value && ( !request.term || matcher.test(text) ) )
+                        return {
+                            label: text,
+                            value: text,
+                            option: this,
+                            class: $(this).attr("class"),
+                            href: $(this).attr("href"),
+                            category: $(this).closest("optgroup").attr("label")
+                        };
+                }) );
+            },
+            _removeIfInvalid: function( event, ui ) {
+
+                if ( ui.item ) {
+                    return;
+                }
+
+                var value = this.input.val(),
+                        valueLowerCase = value.toLowerCase(),
+                        valid = false;
+                this.element.find( "option" ).each(function() {
+                    if ( $( this ).text().toLowerCase() === valueLowerCase ) {
+                        this.selected = valid = true;
+                        return false;
+                    }
+                });
+
+                if ( valid ) {
+                    return;
+                }
+
+                this.input
+                        .val( "" )
+                        .attr( "title", value + " not found" )
+                        .tooltip( "open" );
+                this.element.val( "" );
+                this._delay(function() {
+                    this.input.tooltip( "close" ).attr( "title", "" );
+                }, 2500 );
+                this.input.data( "ui-autocomplete" ).term = "";
+            },
+            _destroy: function() {
+                this.wrapper.remove();
+                this.element.show();
+            },
+            getInput: function(){
+                return this.input;
+            }
+        });
+    })( jQuery );
+</script>
+
+</head>
+
+<body>
+
+     <div id='header'></div>
+     <script>
+         $(function() {
+             $('#header').html(createHeader('script','record__supportcase','../..'));
+         });
+     </script>
+
+
+    <div id='leftpanel'></div>
+    <script>
+        $(function() {
+            $('#leftpanel').html(createLeftPanel('script','record__supportcase','../..'));
+        });
+    </script>
+
+
+<script type="text/javascript">
+    $().ready(function(){
+        $(".jtable th").each(function(){
+
+            $(this).addClass("ui-state-default");
+
+        });
+        $(".jtable td").each(function(){
+
+            $(this).addClass("ui-widget-content");
+
+        });
+
+    });
+</script>
+
+
+<div id="contentPanel">
+
+<H1>Case</H1>
+<H3>Internal ID: supportcase</H3>
+
+
+
+
+
+    <H2>Fields</H2>
+    <table class="jtable">
+        <tr><th class="rt_fname">Internal ID</th><th class="rt_ftype">Type</th><th class="rt_fdle">nlapiSubmitField</th><th class="rt_flabel">Label</th><th class="rt_freq">Required</th><th class="rt_fhelp">Help</th></tr>
+            <tr id="field_assigned">
+                <td class="rt_fname">assigned</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Assigned To</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">References an employee record that already exists in your account.
+In order to retrieve a list of available values for this field, use the GetSelectValue operation.</td>
+            </tr>
+            <tr id="field_autoname">
+                <td class="rt_fname">autoname</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Auto</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_casenumber">
+                <td class="rt_fname">casenumber</td>
+                <td class="rt_ftype">identifieranycase</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Number</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_category">
+                <td class="rt_fname">category</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Type</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">References a value in a user defined list at Setup &gt; Support &gt; Case Types.
+In order to retrieve a list of available values for this field, use the GetSelectValue operation.</td>
+            </tr>
+            <tr id="field_company">
+                <td class="rt_fname">company</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Company</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp">References an existing company record in your NetSuite account.
+In order to retrieve a list of available values for this field, use the GetSelectValue operation.</td>
+            </tr>
+            <tr id="field_companyname">
+                <td class="rt_fname">companyname</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_contact">
+                <td class="rt_fname">contact</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Contact</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">References an existing contact record in your NetSuite account.
+In order to retrieve a list of available values for this field, use the GetSelectValue operation.</td>
+            </tr>
+            <tr id="field_createddate">
+                <td class="rt_fname">createddate</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Created Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_customform">
+                <td class="rt_fname">customform</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Custom Form</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_email">
+                <td class="rt_fname">email</td>
+                <td class="rt_ftype">emails</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Email(s)</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">A read-only field referencing the e-mail addess of the employee selected.</td>
+            </tr>
+            <tr id="field_emailemployees">
+                <td class="rt_fname">emailemployees</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Copy Employees</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_emailform">
+                <td class="rt_fname">emailform</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Send to Customer</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_enddate">
+                <td class="rt_fname">enddate</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Date Closed</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_escalationmessage">
+                <td class="rt_fname">escalationmessage</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Escalation Message</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_eventnumber">
+                <td class="rt_fname">eventnumber</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_externalid">
+                <td class="rt_fname">externalid</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">ExternalId</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_helpdesk">
+                <td class="rt_fname">helpdesk</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Help Desk</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_inboundemail">
+                <td class="rt_fname">inboundemail</td>
+                <td class="rt_ftype">email</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Inbound Email Address</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_incomingmessage">
+                <td class="rt_fname">incomingmessage</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Message</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_insertsolution">
+                <td class="rt_fname">insertsolution</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Insert Solution</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_internalonly">
+                <td class="rt_fname">internalonly</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Internal Only</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_isinactive">
+                <td class="rt_fname">isinactive</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Inactive</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_issue">
+                <td class="rt_fname">issue</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Case Issue</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">References a value in a user defined list at Setup &gt; Support &gt; Case Issues. This value represents an issue type.
+In order to retrieve a list of available values for this field, use the GetSelectValue operation.</td>
+            </tr>
+            <tr id="field_item">
+                <td class="rt_fname">item</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Item</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">References an item record that already exists in your NetSuite account. Only items that have the Offer Support tag enabled can be referenced in this field. This tag can be set in Lists &gt; Accounting &gt; Items. It can also be set when creating item records via Web services.
+In order to retrieve a list of available values for this field, use the GetSelectValue operation.</td>
+            </tr>
+            <tr id="field_lastmessagedate">
+                <td class="rt_fname">lastmessagedate</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Last Message Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_lastmodifieddate">
+                <td class="rt_fname">lastmodifieddate</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Last Modified Date</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_lastreopeneddate">
+                <td class="rt_fname">lastreopeneddate</td>
+                <td class="rt_ftype">datetime</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Date Last Reopened</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_messagenew">
+                <td class="rt_fname">messagenew</td>
+                <td class="rt_ftype">checkbox</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">New Message</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_module">
+                <td class="rt_fname">module</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Module</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Select the product module this case is related to.You can create and edit modules on product records at &lt;_TABNAME=ADMI_ISSUEPRODUCT_&gt; &amp;gt; &lt;_TASKCATEGORY=ADMI_ISSUEPRODUCT_&gt; &amp;gt; Products.</td>
+            </tr>
+            <tr id="field_newsolutionfrommsg">
+                <td class="rt_fname">newsolutionfrommsg</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_origin">
+                <td class="rt_fname">origin</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Origin</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">References a value in a user defined list at Setup &gt; Support &gt; Case Origin Types.
+In order to retrieve a list of available values for this field, use the GetSelectValue operation.</td>
+            </tr>
+            <tr id="field_outgoingmessage">
+                <td class="rt_fname">outgoingmessage</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Reply</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_phone">
+                <td class="rt_fname">phone</td>
+                <td class="rt_ftype">phone</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Phone</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">A read-only field referencing the phone number of the employee selected.</td>
+            </tr>
+            <tr id="field_priority">
+                <td class="rt_fname">priority</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Priority</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">References a value in a user defined list at Setup &gt; Support &gt; Case Priorities. This value represents an issue status.In order to retrieve a list of available values for this field, use the GetSelectValue operation.</td>
+            </tr>
+            <tr id="field_product">
+                <td class="rt_fname">product</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Product</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">Select the product this case is related to.You can create and edit product records at &lt;_TABNAME=ADMI_ISSUEPRODUCT_&gt; &amp;gt; &lt;_TASKCATEGORY=ADMI_ISSUEPRODUCT_&gt; &amp;gt; Products.</td>
+            </tr>
+            <tr id="field_profile">
+                <td class="rt_fname">profile</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Profile</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp">Select the profile you want to assign to this case. This profile determines the following:
+&lt;ul&gt;&lt;li&gt;the from name and from email address shown on notification sent for this case&lt;/li&gt;
+&lt;li&gt;the notification templates used&lt;/li&gt;
+&lt;/ul&gt;
+You can create new case profiles at &lt;_TABNAME=EDIT_CASEPROFILE_&gt; &amp;gt; &lt;_TASKCATEGORY=EDIT_CASEPROFILE_&gt; &amp;gt; Case Profiles &gt; New.</td>
+            </tr>
+            <tr id="field_searchsolution">
+                <td class="rt_fname">searchsolution</td>
+                <td class="rt_ftype">textarea</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_serialnumber">
+                <td class="rt_fname">serialnumber</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Serial/Lot Number</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_stage">
+                <td class="rt_fname">stage</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel"></td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_startdate">
+                <td class="rt_fname">startdate</td>
+                <td class="rt_ftype">date</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Incident Date</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_starttime">
+                <td class="rt_fname">starttime</td>
+                <td class="rt_ftype">timeofday</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Incident Time</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp"></td>
+            </tr>
+            <tr id="field_status">
+                <td class="rt_fname">status</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Status</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp">References a value in a user defined list at Setup &gt; Support &gt; Case Statuses. This value represents an issue status.
+In order to retrieve a list of available values for this field, use the GetSelectValue operation.</td>
+            </tr>
+            <tr id="field_subsidiary">
+                <td class="rt_fname">subsidiary</td>
+                <td class="rt_ftype">select</td>
+                <td class="rt_fdle">false</td>
+                <td class="rt_flabel">Subsidiary</td>
+                <td class="rt_freq">false</td>
+                <td class="rt_fhelp">The subsidiary for the customer associated with this case is displayed here.</td>
+            </tr>
+            <tr id="field_title">
+                <td class="rt_fname">title</td>
+                <td class="rt_ftype">text</td>
+                <td class="rt_fdle">true</td>
+                <td class="rt_flabel">Subject</td>
+                <td class="rt_freq">true</td>
+                <td class="rt_fhelp">Sets the title that is displayed in the cases list, subtabs of  completed company, customer and contact records and in the subtab of completed solution records.</td>
+            </tr>
+    </table>
+
+    <H2>Sublists</H2>
+            <H4><span id="field_escalateto_">escalateto - Escalate To</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_escalateto_email">
+                        <td class="rt_sname">email</td>
+                        <td class="rt_stype">email</td>
+                        <td class="rt_slabel">Email</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_escalateto_escalatee">
+                        <td class="rt_sname">escalatee</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Escalatee</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_escalateto_phone">
+                        <td class="rt_sname">phone</td>
+                        <td class="rt_stype">phone</td>
+                        <td class="rt_slabel">Phone</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+            </table>
+            <H4><span id="field_timeitem_">timeitem - Time Tracking</span></H4>
+            <table class="jtable">
+                <tr><th class="rt_sname">Internal ID</th><th class="rt_stype">Type</th><th class="rt_slabel">Label</th><th class="rt_sreq">Required</th></tr>
+                    <tr id="field_timeitem_class">
+                        <td class="rt_sname">class</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Class</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_timeitem_department">
+                        <td class="rt_sname">department</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Department</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_timeitem_employee">
+                        <td class="rt_sname">employee</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Employee</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_timeitem_hours">
+                        <td class="rt_sname">hours</td>
+                        <td class="rt_stype">timetrack</td>
+                        <td class="rt_slabel">Duration</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_timeitem_id">
+                        <td class="rt_sname">id</td>
+                        <td class="rt_stype">integer</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_timeitem_isbillable">
+                        <td class="rt_sname">isbillable</td>
+                        <td class="rt_stype">checkbox</td>
+                        <td class="rt_slabel">Billable</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_timeitem_isexempt">
+                        <td class="rt_sname">isexempt</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_timeitem_isproductive">
+                        <td class="rt_sname">isproductive</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_timeitem_isutilized">
+                        <td class="rt_sname">isutilized</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_timeitem_item">
+                        <td class="rt_sname">item</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Service Item</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_timeitem_jobbillingtype">
+                        <td class="rt_sname">jobbillingtype</td>
+                        <td class="rt_stype">text</td>
+                        <td class="rt_slabel"></td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_timeitem_location">
+                        <td class="rt_sname">location</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Location</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+                    <tr id="field_timeitem_memo">
+                        <td class="rt_sname">memo</td>
+                        <td class="rt_stype">textarea</td>
+                        <td class="rt_slabel">Memo</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_timeitem_payrollitem">
+                        <td class="rt_sname">payrollitem</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Payroll Item</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_timeitem_timetype">
+                        <td class="rt_sname">timetype</td>
+                        <td class="rt_stype">select</td>
+                        <td class="rt_slabel">Type</td>
+                        <td class="rt_sreq">false</td>
+                    </tr>
+                    <tr id="field_timeitem_trandate">
+                        <td class="rt_sname">trandate</td>
+                        <td class="rt_stype">date</td>
+                        <td class="rt_slabel">Date</td>
+                        <td class="rt_sreq">true</td>
+                    </tr>
+            </table>
+
+
+    <H2>Tabs</H2>
+    <table class="jtable">
+        <tr><th class="rt_tname">Name</th><th class="rt_tlabel">Label</th></tr>
+            <tr>
+                <td class="rt_tname">communication</td>
+                <td class="rt_tlabel">Communication</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">custom</td>
+                <td class="rt_tlabel">Custom</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">escalation</td>
+                <td class="rt_tlabel">Escalations</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">general</td>
+                <td class="rt_tlabel">General</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">interactions</td>
+                <td class="rt_tlabel">Interactions</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">time</td>
+                <td class="rt_tlabel">Time</td>
+            </tr>
+            <tr>
+                <td class="rt_tname">workflow</td>
+                <td class="rt_tlabel">Workflow</td>
+            </tr>
+    </table>
+
+    <H2>Search Joins</H2>
+    <table class="jtable">
+        <tr><th class="rt_jid">Join ID</th><th class="rt_jlabel">Join Description</th><th class="rt_jname">Actual Join Name</th></tr>
+            <tr>
+                <td class="rt_jid">contact</td>
+                <td class="rt_jlabel">Contact</td>
+                <td class="rt_jname">Contact</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">customer</td>
+                <td class="rt_jlabel">Customer</td>
+                <td class="rt_jname">Customer</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">employee</td>
+                <td class="rt_jlabel">Employee</td>
+                <td class="rt_jname">Employee</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">issue</td>
+                <td class="rt_jlabel">Issue</td>
+                <td class="rt_jname">Issue</td>
+            </tr>
+            <tr>
+                <td class="rt_jid">messages</td>
+                <td class="rt_jlabel">Messages</td>
+                <td class="rt_jname">Message</td>
+            </tr>
+    </table>
+
+    <H2>Search Filters</H2>
+    <table class="jtable">
+        <tr><th class="rt_iname">Internal ID</th><th class="rt_itype">Type</th><th class="rt_ilabel">Label</th></tr>
+            <tr>
+                <td class="rt_iname">assigned</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Assigned To</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">awaitingreply</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Awaiting Support Reply</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">casenumber</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Number/ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">category</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">closeddate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Date Closed</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">company</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Company</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">contact</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Contact</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">createddate</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Date Created</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">email</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Email</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">escalateto</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Escalated To</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">externalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">External ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">externalidstring</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">External ID (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formuladate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulanumeric</td>
+                <td class="rt_itype">float</td>
+                <td class="rt_ilabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">formulatext</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">helpdesk</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Help Desk</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">inboundemail</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Inbound Email</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalid</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">internalidnumber</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Internal ID (Number)</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">isinactive</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Inactive</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">issue</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Issue</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">issuefixedin</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Issue Fixed In</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">issuenumber</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Issue Number</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">issuestatus</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Issue Status</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">issuetype</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Issue Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">item</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Item</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lastmessage</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Most Recent Message</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lastmodifieddate</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Date Last Modified</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">lastreopeneddate</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Date Last Reopened</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">locked</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Locked</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">message</td>
+                <td class="rt_itype">clobtext</td>
+                <td class="rt_ilabel">Message Text</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">messageauthor</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Message Author</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">messagedate</td>
+                <td class="rt_itype">date</td>
+                <td class="rt_ilabel">Message Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">messagetype</td>
+                <td class="rt_itype">checkbox</td>
+                <td class="rt_ilabel">Message Type</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">module</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Module</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">number</td>
+                <td class="rt_itype">integer</td>
+                <td class="rt_ilabel">Number</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">origin</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Origin</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">priority</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Priority</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">product</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Product</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">profile</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Profile</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">serialnumber</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Serial/Lot #</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">stage</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Stage</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">startdate</td>
+                <td class="rt_itype">datetime</td>
+                <td class="rt_ilabel">Incident Date</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">status</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Status</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">subsidiary</td>
+                <td class="rt_itype">select</td>
+                <td class="rt_ilabel">Subsidiary</td>
+            </tr>
+            <tr>
+                <td class="rt_iname">title</td>
+                <td class="rt_itype">text</td>
+                <td class="rt_ilabel">Subject</td>
+            </tr>
+    </table>
+
+    <H2>Search Columns</H2>
+    <table class="jtable">
+        <tr><th class="rt_cname">Internal ID</th><th class="rt_ctype">Type</th><th class="rt_clabel">Label</th></tr>
+            <tr>
+                <td class="rt_cname">assigned</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Assigned To</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">awaitingreply</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Awaiting Support Reply</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">casenumber</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Number</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">category</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Type</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">company</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Company</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">contact</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Contact</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">createddate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Date Created</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">customerstage</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Customer Stage</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">email</td>
+                <td class="rt_ctype">email</td>
+                <td class="rt_clabel">Email</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">enddate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Date Closed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">escalatee</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Escalated To</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">externalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">External ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulacurrency</td>
+                <td class="rt_ctype">currency</td>
+                <td class="rt_clabel">Formula (Currency)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladate</td>
+                <td class="rt_ctype">date</td>
+                <td class="rt_clabel">Formula (Date)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formuladatetime</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Formula (Date/Time)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulanumeric</td>
+                <td class="rt_ctype">float</td>
+                <td class="rt_clabel">Formula (Numeric)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulapercent</td>
+                <td class="rt_ctype">percent</td>
+                <td class="rt_clabel">Formula (Percent)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">formulatext</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Formula (Text)</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">grabref</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Grab</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">helpdesk</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Help Desk</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">inboundemail</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Inbound Email</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">internalid</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Internal ID</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">isinactive</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Inactive</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">issue</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Issue</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">issuenumber</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Issue Number</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">item</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Item</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastmessagedate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Last Msg. Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastmodifieddate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Last Modified</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastreopeneddate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Last Reopened</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">lastviewed</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Last Viewed</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">locked</td>
+                <td class="rt_ctype">checkbox</td>
+                <td class="rt_clabel">Locked</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">module</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Module</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">origin</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Origin</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">priority</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Priority</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">product</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Product</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">profile</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Profile</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">serialnumber</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Serial/Lot #</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">stage</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Stage</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">startdate</td>
+                <td class="rt_ctype">datetime</td>
+                <td class="rt_clabel">Incident Date</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">status</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Status</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">subsidiary</td>
+                <td class="rt_ctype">select</td>
+                <td class="rt_clabel">Subsidiary</td>
+            </tr>
+            <tr>
+                <td class="rt_cname">title</td>
+                <td class="rt_ctype">text</td>
+                <td class="rt_clabel">Subject</td>
+            </tr>
+    </table>
+
+    <p>&nbsp;</p>
+</div>
+    <script>
+         $(function() {
+             wrapBodyDiv('script','contentPanel');
+         });
+    </script>
+
+</body>
+</html>
