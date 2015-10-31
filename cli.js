@@ -48,7 +48,9 @@ for (var it in yarr) {
 if (!config.downloads || (record && id)) {
     config.downloads = [];
 
-    if (record && id) {
+    if (record === '*') {
+        config.downloads = [];
+    } else if (record && id) {
         config.downloads.push({
             record: record,
             id: id
