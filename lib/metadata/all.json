@@ -586,5 +586,109 @@
   {
     "id": "-196",
     "name": "Workplace"
+  },
+  {
+    "id": "-142",
+    "name": "Campaign Audience"
+  },
+  {
+    "id": "-143",
+    "name": "Campaign Category"
+  },
+  {
+    "id": "-144",
+    "name": "Campaign Channel"
+  },
+  {
+    "id": "-229",
+    "name": "Campaign Email"
+  },
+  {
+    "id": "-226",
+    "name": "Campaign Event Response"
+  },
+  {
+    "id": "-227",
+    "name": "Campaign Event Type"
+  },
+  {
+    "id": "-145",
+    "name": "Campaign Family"
+  },
+  {
+    "id": "-146",
+    "name": "Campaign Offer"
+  },
+  {
+    "id": "-131",
+    "name": "Campaign Response Type"
+  },
+  {
+    "id": "-148",
+    "name": "Campaign Search Engine"
+  },
+  {
+    "id": "-149",
+    "name": "Campaign Subscription"
+  },
+  {
+    "id": "-150",
+    "name": "Campaign Vertical"
+  },
+  {
+    "id": "-155",
+    "name": "Cost Category"
+  },
+  {
+    "id": "-207",
+    "name": "Cost Estimate Type"
+  },
+  {
+    "id": "-310",
+    "name": "Generic Resource"
+  },
+  {
+    "id": "-173",
+    "name": "Issue Reproducibility"
+  },
+  {
+    "id": "-174",
+    "name": "Issue Severity"
+  },
+  {
+    "id": "-175",
+    "name": "Issue Source"
+  },
+  {
+    "id": "-133",
+    "name": "Issue Status"
+  },
+  {
+    "id": "-176",
+    "name": "Issue Type"
+  },
+  {
+    "id": "-211",
+    "name": "Project Constraint Type"
+  },
+  {
+    "id": "-27",
+    "name": "Project Task"
+  },
+  {
+    "id": "-321",
+    "name": "Project Template"
+  },
+  {
+    "id": "-177",
+    "name": "Project Type"
+  },
+  {
+    "id": "-25",
+    "name": "Solution"
+  },
+  {
+    "id": "-197",
+    "name": "Subscription Status"
   }
 ]
