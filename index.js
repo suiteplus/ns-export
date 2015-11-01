@@ -53,6 +53,9 @@ console.log('--------------------------------------------');
 console.log('account: ' + config.account);
 console.log('user: ' + config.email);
 console.log('realm: ' + config.realm);
+if (config.bundle) {
+    console.log('bundle: ' + config.bundle);
+}
 console.log('############################################');
 casper.open(sysURL + '/app/login/nllogin.nl', {
    method: 'post',
