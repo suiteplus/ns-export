@@ -27,7 +27,7 @@ or in `~/.ns/` using the following template. Security questions must be lowercas
   "email": "user@email.tt",
   "password": "****",
   "account": "JJHSN87932P",
-  "realm": "system.netsuite.com",
+  "realm": "na1.netsuite.com", // or "sandbox.netsuite.com"
   "quiz": [
     {
       "question": "question 1",
@@ -46,7 +46,20 @@ or in `~/.ns/` using the following template. Security questions must be lowercas
   - Invoke the CLI tool.
 
 ```bash 
+   echo "export 'customrecord_japo' metadatum"
+   nsexport customrecord_japo
+   
+   echo "export 'customrecord_japo' metadatum and data from ID 293"
    nsexport customrecord_japo 293
+   
+   echo "export 'customrecord_japo' metadatum and data from ID 293 and his relationships"
+   nsexport customrecord_japo 293 -d 2
+   
+   echo "export 'customrecord_japo' metadatum and data from ID 293 and his relationships from Bundle 1234"
+   nsexport customrecord_japo 293 -d 2 -b 1234
+   
+   echo "export all metadata from Bundle 1234"
+   nsexport '*' -b 1234
 ```
 
 Fetched data are dumped into the `./ns-exports` folder.
