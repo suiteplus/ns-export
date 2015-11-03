@@ -88,27 +88,6 @@
       "mandatory": false
     },
     {
-      "code": "internalid",
-      "type": "SELECT",
-      "translations": {
-        "en": {
-          "label": "Internal ID"
-        }
-      },
-      "mandatory": false,
-      "recordType": null
-    },
-    {
-      "code": "internalidnumber",
-      "type": "INTEGER",
-      "translations": {
-        "en": {
-          "label": "Internal ID (Number)"
-        }
-      },
-      "mandatory": false
-    },
-    {
       "code": "isprimary",
       "type": "CHECKBOX",
       "translations": {
@@ -126,7 +105,7 @@
           "label": "Name"
         }
       },
-      "mandatory": false
+      "mandatory": true
     },
     {
       "code": "name",
@@ -136,7 +115,7 @@
           "label": "Name"
         }
       },
-      "mandatory": true
+      "mandatory": false
     },
     {
       "code": "status",

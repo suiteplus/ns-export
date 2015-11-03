@@ -660,34 +660,15 @@
     },
     {
       "code": "image",
-      "type": "IMAGE",
-      "translations": {
-        "en": {
-          "label": "Image"
-        }
-      },
-      "mandatory": false
-    },
-    {
-      "code": "internalid",
       "type": "SELECT",
       "translations": {
         "en": {
-          "label": "Internal ID"
+          "label": "Image",
+          "help": "References an existing file in the file cabinet for your account.\nIn order to retrieve a list of available values for this field, use the GetSelectValue operation. For more information, see getSelectValue of the Platform Guide."
         }
       },
       "mandatory": false,
       "recordType": null
-    },
-    {
-      "code": "internalidnumber",
-      "type": "INTEGER",
-      "translations": {
-        "en": {
-          "label": "Internal ID (Number)"
-        }
-      },
-      "mandatory": false
     },
     {
       "code": "isdefaultbilling",

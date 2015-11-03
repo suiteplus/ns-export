@@ -283,27 +283,6 @@
       "mandatory": false
     },
     {
-      "code": "internalid",
-      "type": "SELECT",
-      "translations": {
-        "en": {
-          "label": "Internal ID"
-        }
-      },
-      "mandatory": false,
-      "recordType": null
-    },
-    {
-      "code": "internalidnumber",
-      "type": "INTEGER",
-      "translations": {
-        "en": {
-          "label": "Internal ID (Number)"
-        }
-      },
-      "mandatory": false
-    },
-    {
       "code": "inventory",
       "type": "CHECKBOX",
       "translations": {
@@ -386,7 +365,7 @@
         }
       },
       "mandatory": false,
-      "recordType": null
+      "recordType": "parent"
     },
     {
       "code": "revalue",

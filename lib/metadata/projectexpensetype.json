@@ -97,17 +97,6 @@
       "mandatory": false
     },
     {
-      "code": "internalid",
-      "type": "SELECT",
-      "translations": {
-        "en": {
-          "label": "Internal ID"
-        }
-      },
-      "mandatory": false,
-      "recordType": null
-    },
-    {
       "code": "isinactive",
       "type": "TEXT",
       "translations": {
@@ -125,7 +114,7 @@
           "label": "Name"
         }
       },
-      "mandatory": false
+      "mandatory": true
     },
     {
       "code": "name",
@@ -135,7 +124,7 @@
           "label": "Name"
         }
       },
-      "mandatory": true
+      "mandatory": false
     },
     {
       "code": "user",

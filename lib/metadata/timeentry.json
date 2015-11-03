@@ -318,26 +318,6 @@
       "mandatory": false
     },
     {
-      "code": "internalid",
-      "type": "INTEGER",
-      "translations": {
-        "en": {
-          "label": "Internal ID"
-        }
-      },
-      "mandatory": false
-    },
-    {
-      "code": "internalidnumber",
-      "type": "INTEGER",
-      "translations": {
-        "en": {
-          "label": "Internal ID (Number)"
-        }
-      },
-      "mandatory": false
-    },
-    {
       "code": "isbillable",
       "type": "CHECKBOX",
       "translations": {

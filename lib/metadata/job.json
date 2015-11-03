@@ -839,7 +839,8 @@
           "label": "Image"
         }
       },
-      "mandatory": false
+      "mandatory": false,
+      "recordType": "file"
     },
     {
       "code": "includecrmtasksintotals",
@@ -847,27 +848,6 @@
       "translations": {
         "en": {
           "label": "Include CRM Tasks in Job Totals"
-        }
-      },
-      "mandatory": false
-    },
-    {
-      "code": "internalid",
-      "type": "SELECT",
-      "translations": {
-        "en": {
-          "label": "Internal ID"
-        }
-      },
-      "mandatory": false,
-      "recordType": null
-    },
-    {
-      "code": "internalidnumber",
-      "type": "INTEGER",
-      "translations": {
-        "en": {
-          "label": "Internal ID (Number)"
         }
       },
       "mandatory": false

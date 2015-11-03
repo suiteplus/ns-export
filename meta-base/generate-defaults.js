@@ -81,6 +81,10 @@ var next = function(file) {
                             mandatory = field.find('td:nth-child(5)').text().trim() === 'true',
                             help = field.find('td:nth-child(6)').text().trim();
 
+                        if (code.indexOf('internalid') === 0) {
+                            continue;
+                        }
+
                         let metaFieldObj = {
                             "code": code,
                             "type": type,
@@ -99,8 +103,14 @@ var next = function(file) {
                             } else if (~htmls.indexOf(label.toLowerCase().replace(/ /, '') + '.html')) {
                                 metaFieldObj.recordType = label.toLowerCase().replace(/ /, '');
                             } else {
-                                metaFieldObj.recordType = null;
+                                if (code === 'parent') {
+                                    metaFieldObj.recordType = ~metaObj.code.indexOf('item') ? 'item' : metaObj.code;
+                                } else {
+                                    metaFieldObj.recordType = null;
+                                }
                             }
+                        } else if (~['DOCUMENT', 'IMAGE'].indexOf(metaFieldObj.type)) {
+                            metaFieldObj.recordType = 'file'
                         }
                         if (!mapFields[code]) {
                             mapFields[code] = metaObj.fields.length;
@@ -122,6 +132,10 @@ var next = function(file) {
                             label = field.find('td:nth-child(2)').text().trim(),
                             actual = field.find('td:nth-child(3)').text().trim(),
                             mandatory = false;
+
+                        if (code.indexOf('internalid') === 0) {
+                            continue;
+                        }
 
                         let metaFieldObj = {
                             "code": code,
@@ -167,6 +181,10 @@ var next = function(file) {
                             label = field.find('td:nth-child(3)').text().trim(),
                             mandatory = false;
 
+                        if (code.indexOf('internalid') === 0) {
+                            continue;
+                        }
+
                         let metaFieldObj = {
                             "code": code,
                             "type": type,
@@ -184,8 +202,14 @@ var next = function(file) {
                             } else if (~htmls.indexOf(label.toLowerCase().replace(/ /, '') + '.html')) {
                                 metaFieldObj.recordType = label.toLowerCase().replace(/ /, '');
                             } else {
-                                metaFieldObj.recordType = null;
+                                if (code === 'parent') {
+                                    metaFieldObj.recordType = ~metaObj.code.indexOf('item') ? 'item' : metaObj.code;
+                                } else {
+                                    metaFieldObj.recordType = null;
+                                }
                             }
+                        } else if (~['DOCUMENT', 'IMAGE'].indexOf(metaFieldObj.type)) {
+                            metaFieldObj.recordType = 'file'
                         }
                         if (!mapFields[code]) {
                             mapFields[code] = metaObj.fields.length;
@@ -193,7 +217,7 @@ var next = function(file) {
                         } else {
                             let ref = mapFields[code],
                                 origMetaFieldObj = metaObj.fields[ref];
-                            if (type === 'SELECT') {
+                            if (~['DOCUMENT', 'IMAGE', 'SELECT'].indexOf(type)) {
                                 if (!metaFieldObj.recordType && origMetaFieldObj.recordType) {
                                     metaFieldObj.recordType = origMetaFieldObj.recordType;
                                 }
@@ -272,8 +296,14 @@ var next = function(file) {
                                 } else if (~htmls.indexOf(label.toLowerCase().replace(/ /, '') + '.html')) {
                                     metaSubFieldObj.recordType = label.toLowerCase().replace(/ /, '');
                                 } else {
-                                    metaSubFieldObj.recordType = null;
+                                    if (code === 'parent') {
+                                        metaSubFieldObj.recordType = ~metaObj.code.indexOf('item') ? 'item' : metaObj.code;
+                                    } else {
+                                        metaSubFieldObj.recordType = null;
+                                    }
                                 }
+                            } else if (~['DOCUMENT', 'IMAGE'].indexOf(metaSubFieldObj.type)) {
+                                metaSubFieldObj.recordType = 'file'
                             }
                             metaSubList.push(metaSubFieldObj);
                         }

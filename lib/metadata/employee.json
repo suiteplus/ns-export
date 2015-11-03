@@ -963,13 +963,15 @@
     },
     {
       "code": "image",
-      "type": "IMAGE",
+      "type": "SELECT",
       "translations": {
         "en": {
-          "label": "Image"
+          "label": "Image",
+          "help": "References an image file that has already been uploaded to the account. In order to retrieve a list of available values for this field, use the GetSelectValue operation. For more information, see getSelectValue of the Platform Guide."
         }
       },
-      "mandatory": false
+      "mandatory": false,
+      "recordType": null
     },
     {
       "code": "initials",
@@ -978,27 +980,6 @@
         "en": {
           "label": "Initials",
           "help": "NetSuite automatically completes this field as you enter first, middle and last names.If you want to make changes to an employee's initials, enter up to three letters in this field."
-        }
-      },
-      "mandatory": false
-    },
-    {
-      "code": "internalid",
-      "type": "SELECT",
-      "translations": {
-        "en": {
-          "label": "Internal ID"
-        }
-      },
-      "mandatory": false,
-      "recordType": null
-    },
-    {
-      "code": "internalidnumber",
-      "type": "INTEGER",
-      "translations": {
-        "en": {
-          "label": "Internal ID (Number)"
         }
       },
       "mandatory": false

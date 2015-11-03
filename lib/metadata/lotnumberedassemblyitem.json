@@ -1489,26 +1489,6 @@
       "recordType": null
     },
     {
-      "code": "internalid",
-      "type": "INTEGER",
-      "translations": {
-        "en": {
-          "label": "Internal ID"
-        }
-      },
-      "mandatory": false
-    },
-    {
-      "code": "internalidnumber",
-      "type": "INTEGER",
-      "translations": {
-        "en": {
-          "label": "Internal ID (Number)"
-        }
-      },
-      "mandatory": false
-    },
-    {
       "code": "inventorydetail",
       "type": "SELECT",
       "translations": {
@@ -2654,7 +2634,7 @@
         }
       },
       "mandatory": false,
-      "recordType": null
+      "recordType": "item"
     },
     {
       "code": "preferencecriterion",
