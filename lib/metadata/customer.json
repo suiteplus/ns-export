@@ -1823,7 +1823,7 @@
         }
       },
       "mandatory": false,
-      "recordType": "parent"
+      "recordType": "customer"
     },
     {
       "code": "parentcustomer",

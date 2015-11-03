@@ -333,7 +333,7 @@
         }
       },
       "mandatory": false,
-      "recordType": "parent"
+      "recordType": "location"
     },
     {
       "code": "phone",

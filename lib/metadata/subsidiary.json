@@ -585,7 +585,7 @@
         }
       },
       "mandatory": true,
-      "recordType": "parent"
+      "recordType": "subsidiary"
     },
     {
       "code": "phone",

@@ -146,7 +146,7 @@
         }
       },
       "mandatory": false,
-      "recordType": "parent"
+      "recordType": "classification"
     },
     {
       "code": "subsidiary",

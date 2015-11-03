@@ -1796,7 +1796,7 @@
         }
       },
       "mandatory": false,
-      "recordType": "parent"
+      "recordType": "prospect"
     },
     {
       "code": "parentcustomer",

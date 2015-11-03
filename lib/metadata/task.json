@@ -398,7 +398,7 @@
         }
       },
       "mandatory": false,
-      "recordType": "parent"
+      "recordType": "task"
     },
     {
       "code": "percentcomplete",

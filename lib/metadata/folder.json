@@ -256,7 +256,7 @@
         }
       },
       "mandatory": false,
-      "recordType": "parent"
+      "recordType": "folder"
     },
     {
       "code": "predecessor",

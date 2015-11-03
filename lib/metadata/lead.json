@@ -1755,7 +1755,7 @@
         }
       },
       "mandatory": false,
-      "recordType": "parent"
+      "recordType": "lead"
     },
     {
       "code": "parentcustomer",

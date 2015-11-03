@@ -205,7 +205,7 @@
         }
       },
       "mandatory": false,
-      "recordType": "parent"
+      "recordType": "taxperiod"
     },
     {
       "code": "payrolllocked",
@@ -265,7 +265,7 @@
             }
           },
           "mandatory": false,
-          "recordType": "parent"
+          "recordType": "taxperiod"
         }
       ]
     }

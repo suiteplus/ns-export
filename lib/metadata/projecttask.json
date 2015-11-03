@@ -473,7 +473,7 @@
         }
       },
       "mandatory": false,
-      "recordType": "parent"
+      "recordType": "projecttask"
     },
     {
       "code": "percenttimecomplete",
