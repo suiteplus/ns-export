@@ -682,5 +682,465 @@
   {
     "id": "-375",
     "name": "Device Id"
+  },
+  {
+    "id": -10000,
+    "name": "accountingbook"
+  },
+  {
+    "id": -10001,
+    "name": "activity"
+  },
+  {
+    "id": -10002,
+    "name": "amortizationschedule"
+  },
+  {
+    "id": -10003,
+    "name": "amortizationtemplate"
+  },
+  {
+    "id": -10004,
+    "name": "assemblybuild"
+  },
+  {
+    "id": -10005,
+    "name": "assemblyitem"
+  },
+  {
+    "id": -10006,
+    "name": "assemblyunbuild"
+  },
+  {
+    "id": -10007,
+    "name": "bintransfer"
+  },
+  {
+    "id": -10008,
+    "name": "binworksheet"
+  },
+  {
+    "id": -10009,
+    "name": "bundleinstallationscript"
+  },
+  {
+    "id": -10010,
+    "name": "calendarevent"
+  },
+  {
+    "id": -10011,
+    "name": "campaigntemplate"
+  },
+  {
+    "id": -10012,
+    "name": "cashrefund"
+  },
+  {
+    "id": -10013,
+    "name": "cashsale"
+  },
+  {
+    "id": -10014,
+    "name": "charge"
+  },
+  {
+    "id": -10015,
+    "name": "check"
+  },
+  {
+    "id": -10016,
+    "name": "classification"
+  },
+  {
+    "id": -10017,
+    "name": "clientscript"
+  },
+  {
+    "id": -10018,
+    "name": "couponcode"
+  },
+  {
+    "id": -10019,
+    "name": "creditmemo"
+  },
+  {
+    "id": -10020,
+    "name": "customerdeposit"
+  },
+  {
+    "id": -10021,
+    "name": "customerpayment"
+  },
+  {
+    "id": -10022,
+    "name": "customerrefund"
+  },
+  {
+    "id": -10023,
+    "name": "deposit"
+  },
+  {
+    "id": -10024,
+    "name": "depositapplication"
+  },
+  {
+    "id": -10025,
+    "name": "descriptionitem"
+  },
+  {
+    "id": -10026,
+    "name": "discountitem"
+  },
+  {
+    "id": -10027,
+    "name": "downloaditem"
+  },
+  {
+    "id": -10028,
+    "name": "-"
+  },
+  {
+    "id": -10029,
+    "name": "entityaccountmapping"
+  },
+  {
+    "id": -10030,
+    "name": "estimate"
+  },
+  {
+    "id": -10031,
+    "name": "expensereport"
+  },
+  {
+    "id": -10032,
+    "name": "folder"
+  },
+  {
+    "id": -10033,
+    "name": "giftcertificate"
+  },
+  {
+    "id": -10034,
+    "name": "giftcertificateitem"
+  },
+  {
+    "id": -10035,
+    "name": "globalaccountmapping"
+  },
+  {
+    "id": -10036,
+    "name": "intercompanyjournalentry"
+  },
+  {
+    "id": -10037,
+    "name": "inventoryadjustment"
+  },
+  {
+    "id": -10038,
+    "name": "inventorycostrevaluation"
+  },
+  {
+    "id": -10039,
+    "name": "inventorycount"
+  },
+  {
+    "id": -10040,
+    "name": "inventorydetail"
+  },
+  {
+    "id": -10041,
+    "name": "inventoryitem"
+  },
+  {
+    "id": -10042,
+    "name": "inventorytransfer"
+  },
+  {
+    "id": -10043,
+    "name": "invoice"
+  },
+  {
+    "id": -10044,
+    "name": "itemaccountmapping"
+  },
+  {
+    "id": -10045,
+    "name": "itemdemandplan"
+  },
+  {
+    "id": -10046,
+    "name": "itemfulfillment"
+  },
+  {
+    "id": -10047,
+    "name": "itemgroup"
+  },
+  {
+    "id": -10048,
+    "name": "itemreceipt"
+  },
+  {
+    "id": -10049,
+    "name": "itemsupplyplan"
+  },
+  {
+    "id": -10050,
+    "name": "journalentry"
+  },
+  {
+    "id": -10051,
+    "name": "kititem"
+  },
+  {
+    "id": -10052,
+    "name": "landedcost"
+  },
+  {
+    "id": -10053,
+    "name": "lead"
+  },
+  {
+    "id": -10054,
+    "name": "lotnumberedassemblyitem"
+  },
+  {
+    "id": -10055,
+    "name": "lotnumberedinventoryitem"
+  },
+  {
+    "id": -10056,
+    "name": "manufacturingcosttemplate"
+  },
+  {
+    "id": -10057,
+    "name": "manufacturingoperationtask"
+  },
+  {
+    "id": -10058,
+    "name": "manufacturingrouting"
+  },
+  {
+    "id": -10059,
+    "name": "markupitem"
+  },
+  {
+    "id": -10060,
+    "name": "massupdatescript"
+  },
+  {
+    "id": -10061,
+    "name": "message"
+  },
+  {
+    "id": -10062,
+    "name": "nexus"
+  },
+  {
+    "id": -10063,
+    "name": "noninventoryitem"
+  },
+  {
+    "id": -10064,
+    "name": "note"
+  },
+  {
+    "id": -10065,
+    "name": "otherchargeitem"
+  },
+  {
+    "id": -10066,
+    "name": "othername"
+  },
+  {
+    "id": -10067,
+    "name": "paycheckjournal"
+  },
+  {
+    "id": -10068,
+    "name": "paymentitem"
+  },
+  {
+    "id": -10069,
+    "name": "payrollitem"
+  },
+  {
+    "id": -10070,
+    "name": "phonecall"
+  },
+  {
+    "id": -10071,
+    "name": "portlet"
+  },
+  {
+    "id": -10072,
+    "name": "projectexpensetype"
+  },
+  {
+    "id": -10073,
+    "name": "promotioncode"
+  },
+  {
+    "id": -10074,
+    "name": "prospect"
+  },
+  {
+    "id": -10075,
+    "name": "purchaseorder"
+  },
+  {
+    "id": -10076,
+    "name": "purchaserequisition"
+  },
+  {
+    "id": -10077,
+    "name": "reallocateitem"
+  },
+  {
+    "id": -10078,
+    "name": "resourceallocation"
+  },
+  {
+    "id": -10079,
+    "name": "restlet"
+  },
+  {
+    "id": -10080,
+    "name": "returnauthorization"
+  },
+  {
+    "id": -10081,
+    "name": "revenuecommitment"
+  },
+  {
+    "id": -10082,
+    "name": "revenuecommitmentreversal"
+  },
+  {
+    "id": -10083,
+    "name": "revrecschedule"
+  },
+  {
+    "id": -10084,
+    "name": "revrectemplate"
+  },
+  {
+    "id": -10085,
+    "name": "salesorder"
+  },
+  {
+    "id": -10086,
+    "name": "salestaxitem"
+  },
+  {
+    "id": -10087,
+    "name": "scheduledscript"
+  },
+  {
+    "id": -10088,
+    "name": "scheduledscriptinstance"
+  },
+  {
+    "id": -10089,
+    "name": "scriptdeployment"
+  },
+  {
+    "id": -10090,
+    "name": "serializedassemblyitem"
+  },
+  {
+    "id": -10091,
+    "name": "serializedinventoryitem"
+  },
+  {
+    "id": -10092,
+    "name": "serviceitem"
+  },
+  {
+    "id": -10093,
+    "name": "statisticaljournalentry"
+  },
+  {
+    "id": -10094,
+    "name": "subtotalitem"
+  },
+  {
+    "id": -10095,
+    "name": "suitelet"
+  },
+  {
+    "id": -10096,
+    "name": "supportcase"
+  },
+  {
+    "id": -10097,
+    "name": "taxacct"
+  },
+  {
+    "id": -10098,
+    "name": "taxgroup"
+  },
+  {
+    "id": -10099,
+    "name": "taxtype"
+  },
+  {
+    "id": -10100,
+    "name": "timebill"
+  },
+  {
+    "id": -10101,
+    "name": "timeentry"
+  },
+  {
+    "id": -10102,
+    "name": "timesheet"
+  },
+  {
+    "id": -10103,
+    "name": "topic"
+  },
+  {
+    "id": -10104,
+    "name": "transferorder"
+  },
+  {
+    "id": -10105,
+    "name": "usereventscript"
+  },
+  {
+    "id": -10106,
+    "name": "vendorbill"
+  },
+  {
+    "id": -10107,
+    "name": "vendorcredit"
+  },
+  {
+    "id": -10108,
+    "name": "vendorpayment"
+  },
+  {
+    "id": -10109,
+    "name": "vendorreturnauthorization"
+  },
+  {
+    "id": -10110,
+    "name": "workflowactionscript"
+  },
+  {
+    "id": -10111,
+    "name": "workorder"
+  },
+  {
+    "id": -10112,
+    "name": "workorderclose"
+  },
+  {
+    "id": -10113,
+    "name": "workordercompletion"
+  },
+  {
+    "id": -10114,
+    "name": "workorderissue"
   }
 ]
