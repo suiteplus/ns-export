@@ -52,7 +52,7 @@ if (!config.downloads || (record && id)) {
     if (record === '*') {
         config.downloads = [];
     } else if (record && id) {
-        id.split(',').forEach(function(id) {
+        ('' + id).split(',').forEach(function(id) {
             config.downloads.push({
                 record: record,
                 id: id
