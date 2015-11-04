@@ -52,13 +52,36 @@ if (!config.downloads || (record && id)) {
     if (record === '*') {
         config.downloads = [];
     } else if (record && id) {
-        config.downloads.push({
-            record: record,
-            id: id
+        id.split(',').forEach(function(id) {
+            config.downloads.push({
+                record: record,
+                id: id
+            });
         });
     } else {
-        var file = record;
-        config.downloads = require(file);
+        var hasDot = record.indexOf('./') === 0,
+            hasSpt = record.indexOf('/') === 0,
+            file = hasDot ? record : hasSpt ? '.' + record : './' + record;
+
+        if (hasDot || hasSpt || fs.existsSync(file)) {
+            config.downloads = [];
+            require(file).forEach(function(data) {
+                if (Array.isArray(data.id)) {
+                    data.id.forEach(function(id) {
+                        config.downloads.push({
+                            record: data.record,
+                            id: id
+                        });
+                    });
+                } else {
+                    config.downloads.push(data);
+                }
+            });
+        } else {
+            config.downloads = [{
+                record: record
+            }];
+        }
     }
 }
 
