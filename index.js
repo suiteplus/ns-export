@@ -40,8 +40,7 @@ if (fs.exists(tempDir)) fs.removeTree(tempDir);
 });
 
 var base = config.realm ? 'system.' + config.realm : 'system.netsuite.com',
-    sysURL = 'https://'+base,
-    na1URL = sysURL;
+    sysURL = 'https://'+base;
 
 casper.start();
 
@@ -52,7 +51,8 @@ console.log('========>>> ns-export starting <<<==========');
 console.log('--------------------------------------------');
 console.log('account: ' + config.account);
 console.log('user: ' + config.email);
-console.log('realm: ' + config.realm);
+console.log('realm: ' + config.realm || 'netsuite.com');
+console.log('host: ' + sysURL);
 if (config.bundle) {
     console.log('bundle: ' + config.bundle);
 }
@@ -104,7 +104,7 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
             this.capture(ssDir + '/home.jpg');
 
             records.loadAll({
-                url: na1URL,
+                url: sysURL,
                 config: config,
                 dir: dirWork
             });
