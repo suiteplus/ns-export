@@ -65,7 +65,8 @@ if (!config.downloads || (record && id)) {
 
         if (hasDot || hasSpt || fs.existsSync(file)) {
             config.downloads = [];
-            require(file).forEach(function(data) {
+            var content = fs.readFileSync(file, 'utf8');
+            JSON.parse(content).forEach(function(data) {
                 if (Array.isArray(data.id)) {
                     data.id.forEach(function(id) {
                         config.downloads.push({
