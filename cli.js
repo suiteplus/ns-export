@@ -8,11 +8,12 @@ var yarr = require('yargs')
     .command('<file>', 'JSON Array of Record Types and IDs, "nsexport ./records.json"')
     .demand(1)
     //.demand(2)
-    .describe('depth','Depth of join with others Records. Default: 1.').alias('depth','d')
+    .describe('account','Account id.').alias('account','a')
     .describe('bundle', 'Bundle ID').alias('bundle', 'b')
+    .describe('depth','Depth of join with others Records. Default: 1.').alias('depth','d')
     .describe('email','Account email.').alias('email','e')
     .describe('password','Account password.').alias('password','p')
-    .describe('account','Account id.').alias('account','a')
+    .describe('show-inactive', 'Set "Show Inactive" Configuration. Default: false').alias('show-inactive', 'si')
     .argv;
 
 var child = require('child_process'),
