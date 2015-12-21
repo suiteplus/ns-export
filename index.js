@@ -93,9 +93,14 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
             $rows = $html.find('tr.uir-list-row-tr');
 
         for (var r = 0; r < $rows.length; r++) {
-            var $row = $($rows[r]);
-            if (~$row.text().indexOf(config.account)) {
-                this.click('span#' + $('span.checkbox_ck', $row)[0].id);
+            var $row = $($rows[r]),
+                rowTd = $row.find('td'),
+                rowText = rowTd.filter('.listtext'),
+                account = rowText.filter(':eq(1)').text();
+            if (~account.indexOf(config.account)) {
+                var tt = account.split('-'),
+                    acc = tt[tt.length - 1].trim();
+                this.click('tr.uir-list-row-tr a[href$='+acc+']');
                 break;
             }
         }
