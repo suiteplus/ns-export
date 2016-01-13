@@ -106,5 +106,3 @@ cspr.on('exit', function (code) {
     process.exit(code);
     console.log('\n');
 });
-
-

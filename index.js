@@ -39,7 +39,7 @@ if (fs.exists(tempDir)) fs.removeTree(tempDir);
     if (!fs.exists(dir)) fs.makeDirectory(dir); 
 });
 
-var base = config.realm ? 'system.' + config.realm : 'system.netsuite.com',
+var base = config.realm ? 'system2.' + config.realm : 'system.2netsuite.com',
     sysURL = 'https://'+base;
 
 casper.start();
@@ -85,7 +85,7 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
         casper.exit();
     }
 
-    casper.wait(15000, function() {
+    casper.wait(15000, function () {
         this.capture(ssDir + '/afterLogin.jpg');
 
         var html = this.getHTML().toString(),
@@ -100,7 +100,7 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
             if (~account.indexOf(config.account)) {
                 var tt = account.split('-'),
                     acc = tt[tt.length - 1].trim();
-                this.click('tr.uir-list-row-tr a[href$='+acc+']');
+                this.click('tr.uir-list-row-tr a[href$=' + acc + ']');
                 break;
             }
         }
