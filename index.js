@@ -66,7 +66,8 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
     }
 }).then( function () {
     this.viewport(1280, 1024);
-    this.capture(ssDir + '/question.jpg');
+    var ssQuestion = ssDir + '/question.jpg';
+    this.capture(ssQuestion);
 
     var html = this.getHTML().toString().toLowerCase();
     var quiz = config.quiz,
@@ -81,7 +82,8 @@ casper.open(sysURL + '/app/login/nllogin.nl', {
     }
 
     if (!has) {
-        this.echo('Question not found');
+        casper.log('Question not found', 'error');
+        casper.log('See the question in: ' + ssQuestion, 'error');
         casper.exit();
     }
 
