@@ -36,11 +36,12 @@ var config = JSON.parse(fs.read(configFile, 'utf-8'));
 
 if (fs.exists(tempDir)) fs.removeTree(tempDir);
 [tempDir, ssDir, metaDir].forEach(function(dir) {
-    if (!fs.exists(dir)) fs.makeDirectory(dir); 
+    if (!fs.exists(dir)) fs.makeDirectory(dir);
 });
 
-var base = config.realm ? 'system2.' + config.realm : 'system.2netsuite.com',
-    sysURL = 'https://'+base;
+var realm = config.realm || 'netsuite.com',
+    base = config.hostname || 'system.' + realm,
+    sysURL = 'https://' + base;
 
 casper.start();
 

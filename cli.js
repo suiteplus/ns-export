@@ -32,7 +32,10 @@ if (!fs.existsSync(dir)) {
 }
 
 var nsconfig = require('nsconfig'),
-    custom_params = [{ name : 'quiz' , required : true }],
+    custom_params = [
+        {name: 'subdomain', default: 'system2'},
+        {name : 'quiz' , required : true}
+    ],
     config = nsconfig({}, custom_params);
 
 // #####################################
