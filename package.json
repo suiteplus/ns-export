@@ -30,11 +30,11 @@
   },
   "homepage": "https://github.com/suiteplus/ns-export-metadata#readme",
   "dependencies": {
-    "casperjs": "^1.1.0-beta3",
-    "jquery": "^2.1.4",
-    "moment": "^2.10.6",
-    "nsconfig": "^0.4.0",
-    "phantomjs": "^1.9.18",
-    "yargs": "^3.27.0"
+    "casperjs": "^1.1.0-beta5",
+    "jquery": "^2.2.0",
+    "moment": "^2.11.2",
+    "nsconfig": "^0.4.1",
+    "phantomjs-prebuilt": "^2.1.2",
+    "yargs": "^3.32.0"
   }
 }
