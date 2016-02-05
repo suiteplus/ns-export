@@ -52,8 +52,7 @@ console.log('========>>> ns-export starting <<<==========');
 console.log('--------------------------------------------');
 console.log('account: ' + config.account);
 console.log('user: ' + config.email);
-console.log('realm: ' + config.realm || 'netsuite.com');
-console.log('host: ' + sysURL);
+console.log('hostname: ' + sysURL);
 if (config.bundle) {
     console.log('bundle: ' + config.bundle);
 }
